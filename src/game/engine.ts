@@ -14,6 +14,7 @@ import {
   Raycaster,
   Scene,
   TorusGeometry,
+  SphereGeometry,
   Vector2,
   Vector3,
   type Intersection,
