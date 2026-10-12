@@ -1,0 +1,230 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Russo+One&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #07060d;
+  --color-surface: #14141c;
+  --color-fg: #f6f3ea;
+  --color-muted: #a39e93;
+  --color-primary: #f0b429;
+  --color-accent: #3ecfc2;
+  --color-border: #2c2c36;
+  --font-display: "Russo One", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --radius: 1.25rem;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    overflow: hidden;
+    overscroll-behavior: none;
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+.arena {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  background: var(--color-bg) url("/arena.jpg") center / cover no-repeat;
+  color: var(--color-fg);
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 28%, color-mix(in oklab, var(--color-bg) 55%, transparent) 78%, color-mix(in oklab, var(--color-bg) 78%, transparent) 100%),
+    linear-gradient(to top, color-mix(in oklab, var(--color-bg) 80%, transparent), transparent 32%),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-bg) 62%, transparent), transparent 24%);
+}
+
+.hud {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding:
+    max(1.1rem, env(safe-area-inset-top))
+    1.25rem
+    max(1.4rem, env(safe-area-inset-bottom));
+  text-align: center;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 4.6vw, 2.15rem);
+  letter-spacing: 0.28em;
+  line-height: 1;
+  text-indent: 0.28em;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+}
+
+.hud-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 28rem;
+}
+
+.prompt {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.28rem, 4.8vw, 2.05rem);
+  line-height: 1.28;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+.armed {
+  margin: 0.85rem 0 0;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  text-transform: uppercase;
+}
+
+.status {
+  margin: 0;
+  max-width: 26rem;
+  color: var(--color-muted);
+  font-size: clamp(0.92rem, 2.7vw, 1.05rem);
+  line-height: 1.45;
+  text-wrap: balance;
+}
+
+.victory {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem 1rem max(1.15rem, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, color-mix(in oklab, var(--color-bg) 78%, transparent), transparent 58%);
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.victory-card {
+  position: relative;
+  z-index: 1;
+  width: min(24rem, 100%);
+  padding: 1.35rem 1.25rem 1.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--color-surface) 90%, transparent);
+  box-shadow: 0 20px 70px color-mix(in oklab, var(--color-bg) 70%, transparent);
+  text-align: center;
+  backdrop-filter: blur(16px);
+}
+
+.trophy-ring {
+  width: 4.25rem;
+  height: 4.25rem;
+  margin: 0 auto 0.85rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--color-primary);
+  border: 1px solid color-mix(in oklab, var(--color-primary) 60%, transparent);
+  background: radial-gradient(circle at 50% 35%, color-mix(in oklab, var(--color-primary) 30%, transparent), transparent 70%);
+}
+
+.trophy-ring svg {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.victory-card h2 {
+  margin: 0.3rem 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 6vw, 2.25rem);
+  letter-spacing: 0.03em;
+  line-height: 1.05;
+}
+
+.victory-copy {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+.cta {
+  margin: 1rem 0 0;
+  color: var(--color-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  animation: cta-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes cta-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta {
+    animation: none;
+  }
+}
