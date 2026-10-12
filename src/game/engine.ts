@@ -175,17 +175,18 @@ export class CubeEngine {
 
   private pendingPiece: Piece | null = null;
 
-  private pinch: { dist: number; midX: number; midY: number; zoom: number; theta: number; phi: number } | null =
-    null;
+  private pinch: {
+    dist: number;
+    midX: number;
+    midY: number;
+    zoom: number;
+    theta: number;
+    phi: number;
+  } | null = null;
 
   private reduced: boolean;
 
-  constructor(opts: {
-    scene: Scene;
-    camera: PerspectiveCamera;
-    dom: HTMLElement;
-    hooks: Hooks;
-  }) {
+  constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
     this.camera = opts.camera;
     this.dom = opts.dom;
     this.hooks = opts.hooks;
@@ -210,7 +211,11 @@ export class CubeEngine {
     const distV = bound / (tanV * fill);
     const distH = bound / (tanH * fill);
     this.fitDist = Math.max(distV, distH);
-    this.targetRadius = clamp(this.fitDist * this.userZoom, this.fitDist * 0.72, this.fitDist * 1.9);
+    this.targetRadius = clamp(
+      this.fitDist * this.userZoom,
+      this.fitDist * 0.72,
+      this.fitDist * 1.9,
+    );
   }
 
   tick(dt: number) {
@@ -321,8 +326,7 @@ export class CubeEngine {
     if (!p) return;
 
     if (this.pointers.size === 0) {
-      const tap =
-        this.downButton === 0 && p.travel < 10 && performance.now() - this.downAt < 450;
+      const tap = this.downButton === 0 && p.travel < 10 && performance.now() - this.downAt < 450;
       if (tap && this.mode !== "slice" && this.mode !== "pinch") this.hooks.onTap();
       if (this.mode === "slice") this.releaseSlice();
       this.mode = "none";
@@ -348,7 +352,11 @@ export class CubeEngine {
   onWheel(e: WheelEvent) {
     const factor = e.deltaY > 0 ? 1.08 : 0.92;
     this.userZoom = clamp(this.userZoom * factor, 0.72, 1.9);
-    this.targetRadius = clamp(this.fitDist * this.userZoom, this.fitDist * 0.72, this.fitDist * 1.9);
+    this.targetRadius = clamp(
+      this.fitDist * this.userZoom,
+      this.fitDist * 0.72,
+      this.fitDist * 1.9,
+    );
   }
 
   dispose() {
@@ -358,23 +366,21 @@ export class CubeEngine {
     if (window.__cubix) delete window.__cubix;
   }
 
-  /** QA hook: undo to one move away, then play that move as the player. */
+  /** Puts the cube one turn from solved and plays that turn as the player. */
   solveAsPlayer() {
     if (this.anim || this.mode === "slice") return;
-    if (this.history.length === 0) {
-      if (isSolved(this.pieces)) this.declareWin();
-      return;
-    }
-    const last = this.history[this.history.length - 1]!;
-    for (let i = this.history.length - 2; i >= 0; i--) {
-      const h = this.history[i]!;
+    const hist = this.history.splice(0);
+    for (let i = hist.length - 1; i >= 0; i--) {
+      const h = hist[i]!;
       applyQuarters(this.pieces, h.axis, h.layer, -h.quarters);
     }
-    this.history = [last];
+    applyQuarters(this.pieces, 1, 1, 1);
+    this.history = [{ axis: 1, layer: 1, quarters: 1 }];
     this.syncAll();
-    this.phase = "playing";
     this.queue = [];
-    this.enqueueQuarters(last.axis, last.layer, -last.quarters, true, false);
+    this.phase = "playing";
+    this.hooks.onPhase(this.phase);
+    this.enqueueQuarters(1, 1, -1, true, true);
   }
 
   private beginScramble() {
@@ -393,7 +399,13 @@ export class CubeEngine {
     this.hooks.onPhase(this.phase);
   }
 
-  private enqueueQuarters(axis: Axis, layer: Layer, quarters: number, user: boolean, sound: boolean) {
+  private enqueueQuarters(
+    axis: Axis,
+    layer: Layer,
+    quarters: number,
+    user: boolean,
+    sound: boolean,
+  ) {
     const q = ((quarters % 4) + 4) % 4;
     if (q === 0) return;
     const dir: Dir = q === 3 ? -1 : 1;
@@ -563,7 +575,11 @@ export class CubeEngine {
     };
   }
 
-  private chooseAxis(tdx: number, tdy: number, dist: number): { axis: Axis; layer: Layer } | "wait" | null {
+  private chooseAxis(
+    tdx: number,
+    tdy: number,
+    dist: number,
+  ): { axis: Axis; layer: Layer } | "wait" | null {
     const piece = this.pendingPiece;
     if (!piece) return null;
     const normal = this.hitNormalFromGrab(piece);
@@ -672,7 +688,7 @@ export class CubeEngine {
       this.vTheta *= damp;
       this.vPhi *= damp;
     }
-    const desiredLook = this.phase === "won" ? -0.72 : 0;
+    const desiredLook = this.phase === "won" ? -1.15 : 0;
     this.lookY += (desiredLook - this.lookY) * (1 - Math.exp(-4 * dt));
     this.radius += (this.targetRadius - this.radius) * (1 - Math.exp(-7 * dt));
     const sinPhi = Math.sin(this.phi);
@@ -708,7 +724,11 @@ export class CubeEngine {
 
   private syncAll() {
     for (const piece of this.pieces) {
-      piece.mesh.position.set(piece.pos[0] * SPACING, piece.pos[1] * SPACING, piece.pos[2] * SPACING);
+      piece.mesh.position.set(
+        piece.pos[0] * SPACING,
+        piece.pos[1] * SPACING,
+        piece.pos[2] * SPACING,
+      );
       quatFromOri(piece.ori, piece.mesh.quaternion, this.tmpA, this.tmpB, this.tmpC);
     }
   }
@@ -735,10 +755,10 @@ export class CubeEngine {
     this.geos.push(bodyGeo, stickerGeo);
     const plastic = new MeshPhysicalMaterial({
       color: "#14151c",
-      roughness: 0.36,
-      metalness: 0.58,
-      clearcoat: 0.4,
-      clearcoatRoughness: 0.42,
+      roughness: 0.12, // <-- MUY IMPORTANTE: menos rugosidad = reflejo nítido
+      metalness: 0.35, // <-- Bajamos un poco el metal para que no se vea gris
+      clearcoat: 1.0, // <-- Barniz al máximo para efecto plástico brillante
+      clearcoatRoughness: 0.08, // <-- El barniz también debe ser liso
     });
     this.mats.push(plastic);
     const stickerMat = new Map<string, MeshStandardMaterial>();
@@ -776,6 +796,7 @@ export class CubeEngine {
   }
 
   private buildLights(scene: Scene) {
+    // --- LUCES ORIGINALES (Sin cambios) ---
     const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
     const amb = new AmbientLight("#ffffff", 0.38);
     const key = new DirectionalLight("#fff4e4", 1.25);
@@ -794,29 +815,65 @@ export class CubeEngine {
     const rim = new DirectionalLight("#ffb25a", 0.32);
     rim.position.set(-2, 4, -8);
 
+    // --- NUEVO PODIO RGB ---
+    const discRadius = 2.35;
+
+    // 1. El disco base (mantiene tu textura oscura)
     const disc = new Mesh(
-      new CylinderGeometry(2.35, 2.55, 0.16, 48),
+      new CylinderGeometry(discRadius, discRadius + 0.2, 0.16, 64),
       new MeshStandardMaterial({ color: "#12131a", roughness: 0.55, metalness: 0.35 }),
     );
     disc.position.y = -2.02;
     disc.receiveShadow = true;
+
+    // 2. El aro RGB (reemplaza al dorado)
+    // He usado un color Cian (#00ffff) como base. Puedes cambiarlo a tu gusto.
     const ring = new Mesh(
-      new TorusGeometry(2.15, 0.018, 8, 72),
+      new TorusGeometry(discRadius - 0.05, 0.025, 16, 100),
       new MeshStandardMaterial({
-        color: "#f0b429",
-        emissive: "#f0b429",
-        emissiveIntensity: 0.85,
-        roughness: 0.35,
+        color: "#00ffff",
+        emissive: "#00ffff",
+        emissiveIntensity: 0.8, // Brillo sutil, sin ser cegador
+        roughness: 0.2,
       }),
     );
     ring.rotation.x = Math.PI / 2;
-    ring.position.y = -1.9;
+    ring.position.y = -1.94;
 
+    // 3. Los foquitos RGB (esferas pequeñas alrededor del borde)
+    const bulbGeo = new SphereGeometry(0.06, 8, 8);
+    const numBulbs = 30; // Cantidad de foquitos
+    const bulbColors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"]; // Paleta RGB
+
+    for (let i = 0; i < numBulbs; i++) {
+      const angle = (i / numBulbs) * Math.PI * 2;
+      // Elegir un color de la paleta cíclicamente para dar efecto RGB
+      const colorHex = bulbColors[i % bulbColors.length];
+
+      const bulbMat = new MeshStandardMaterial({
+        color: colorHex,
+        emissive: colorHex,
+        emissiveIntensity: 1.5, // Encendidos, pero sin brillo exagerado
+        roughness: 0.1,
+      });
+
+      const bulb = new Mesh(bulbGeo, bulbMat);
+      bulb.position.set(
+        Math.cos(angle) * (discRadius - 0.1),
+        -1.86, // Un poco más arriba que el aro para que se vean
+        Math.sin(angle) * (discRadius - 0.1),
+      );
+      scene.add(bulb);
+      this.owned.push(bulb);
+      this.mats.push(bulbMat); // Guardar material para limpieza
+    }
+
+    // Añadir todo a la escena y listas de limpieza
     for (const obj of [hemi, amb, key, key.target, fill, rim, disc, ring]) {
       scene.add(obj);
       this.owned.push(obj);
     }
-    for (const g of [disc.geometry, ring.geometry]) this.geos.push(g);
+    for (const g of [disc.geometry, ring.geometry, bulbGeo]) this.geos.push(g);
     for (const m of [disc.material, ring.material]) this.mats.push(m);
   }
 
@@ -824,6 +881,7 @@ export class CubeEngine {
     window.__cubix = {
       phase: () => this.phase,
       solved: () => isSolved(this.pieces),
+      turns: () => this.history.length,
       solveAsPlayer: () => this.solveAsPlayer(),
     };
   }
@@ -897,6 +955,7 @@ declare global {
     __cubix?: {
       phase: () => string;
       solved: () => boolean;
+      turns: () => number;
       solveAsPlayer: () => void;
     };
   }
