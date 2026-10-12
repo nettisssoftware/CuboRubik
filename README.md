@@ -1,0 +1,2 @@
+# CuboRubik
+Juego de inteligencia 
