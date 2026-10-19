@@ -828,12 +828,12 @@ export class CubeEngine {
     disc.receiveShadow = true;
 
     // 2. El aro RGB (reemplaza al dorado)
-    // He usado un color Cian (#00ffff) como base. Puedes cambiarlo a tu gusto.
+    // He usado un color #ffc43b como base. Puedes cambiarlo a tu gusto.
     const ring = new Mesh(
       new TorusGeometry(discRadius - 0.05, 0.025, 16, 100),
       new MeshStandardMaterial({
-        color: "#00ffff",
-        emissive: "#00ffff",
+        color: "#ffc43b",
+        emissive: "#ffc43b",
         emissiveIntensity: 0.8, // Brillo sutil, sin ser cegador
         roughness: 0.2,
       }),
@@ -843,8 +843,8 @@ export class CubeEngine {
 
     // 3. Los foquitos RGB (esferas pequeñas alrededor del borde)
     const bulbGeo = new SphereGeometry(0.06, 8, 8);
-    const numBulbs = 30; // Cantidad de foquitos
-    const bulbColors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"]; // Paleta RGB
+    const numBulbs = 8; // Cantidad de foquitos
+    const bulbColors = ["#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b"]; // Color de los foquitos 
 
     for (let i = 0; i < numBulbs; i++) {
       const angle = (i / numBulbs) * Math.PI * 2;
