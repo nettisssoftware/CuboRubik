@@ -10,6 +10,7 @@ import {
   MeshStandardMaterial,
   Object3D,
   PerspectiveCamera,
+  PointLight,
   Quaternion,
   Raycaster,
   Scene,
@@ -67,7 +68,7 @@ type Anim = {
 };
 
 const SPACING = 1.0;
-const BODY = 0.92;
+const BODY = 0.98;
 const AXIS_VEC = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)];
 
 const TURN_MS = 0.16;
@@ -752,14 +753,14 @@ export class CubeEngine {
 
   private buildPieces(): Piece[] {
     const bodyGeo = new RoundedBoxGeometry(BODY, BODY, BODY, 3, 0.078);
-    const stickerGeo = new RoundedBoxGeometry(0.74, 0.74, 0.05, 2, 0.045);
+    const stickerGeo = new RoundedBoxGeometry(0.82, 0.82, 0.05, 4, 0.12);
     this.geos.push(bodyGeo, stickerGeo);
     const plastic = new MeshPhysicalMaterial({
       color: "#14151c",
-      roughness: 0.12, // <-- MUY IMPORTANTE: menos rugosidad = reflejo nítido
-      metalness: 0.35, // <-- Bajamos un poco el metal para que no se vea gris
-      clearcoat: 1.0, // <-- Barniz al máximo para efecto plástico brillante
-      clearcoatRoughness: 0.08, // <-- El barniz también debe ser liso
+      roughness: 0.25, // Más liso para que el brillo se note
+      metalness: 0.15, // Menos metal para que el brillo sea blanco
+      clearcoat: 1.0, // Barniz al máximo
+      clearcoatRoughness: 0.1,
     });
     this.mats.push(plastic);
     const stickerMat = new Map<string, MeshStandardMaterial>();
@@ -800,16 +801,10 @@ export class CubeEngine {
     // --- LUCES ORIGINALES (Sin cambios) ---
     const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
     const amb = new AmbientLight("#ffffff", 0.38);
-    const key = new DirectionalLight("#fff4e4", 1.25);
-    key.position.set(5.5, 9.5, 6);
+    const key = new PointLight("#fff4e4", 45, 50);
+    key.position.set(0, 10, 0); // Luz exactamente arriba
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
-    key.shadow.camera.near = 1;
-    key.shadow.camera.far = 28;
-    key.shadow.camera.left = -6;
-    key.shadow.camera.right = 6;
-    key.shadow.camera.top = 6;
-    key.shadow.camera.bottom = -6;
     key.shadow.bias = -0.0015;
     const fill = new DirectionalLight("#9fdfff", 0.48);
     fill.position.set(-7, 3.2, -4);
@@ -844,7 +839,7 @@ export class CubeEngine {
     // 3. Los foquitos RGB (esferas pequeñas alrededor del borde)
     const bulbGeo = new SphereGeometry(0.06, 8, 8);
     const numBulbs = 8; // Cantidad de foquitos
-    const bulbColors = ["#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b"]; // Color de los foquitos 
+    const bulbColors = ["#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b"]; // Color de los foquitos
 
     for (let i = 0; i < numBulbs; i++) {
       const angle = (i / numBulbs) * Math.PI * 2;

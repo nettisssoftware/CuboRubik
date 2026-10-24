@@ -79,7 +79,7 @@ function Home() {
         <div className="hud-copy">
           {phase === "ready" ? (
             <>
-              <p className="prompt">Toca dos veces la pantalla para comenzar el juego</p>
+              <p className="prompt">Toca dos veces la pantalla para comenzar</p>
               {armed ? <p className="armed">Una vez más</p> : null}
             </>
           ) : null}
