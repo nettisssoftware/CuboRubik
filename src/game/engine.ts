@@ -753,7 +753,7 @@ export class CubeEngine {
 
   private buildPieces(): Piece[] {
     const bodyGeo = new RoundedBoxGeometry(BODY, BODY, BODY, 3, 0.078);
-    const stickerGeo = new RoundedBoxGeometry(0.82, 0.82, 0.05, 4, 0.12);
+    const stickerGeo = new RoundedBoxGeometry(0.82, 0.82, 0.05, 8, 0.26);
     this.geos.push(bodyGeo, stickerGeo);
     const plastic = new MeshPhysicalMaterial({
       color: "#14151c",
@@ -767,10 +767,8 @@ export class CubeEngine {
     for (const [id, hex] of Object.entries(FACE_HEX)) {
       const mat = new MeshStandardMaterial({
         color: hex,
-        roughness: 0.42,
-        metalness: 0.02,
-        emissive: hex,
-        emissiveIntensity: 0.28,
+        metalness: 0.1,
+        roughness: 0.25,
       });
       stickerMat.set(id, mat);
       this.mats.push(mat);
@@ -797,82 +795,30 @@ export class CubeEngine {
     });
   }
 
-  private buildLights(scene: Scene) {
-    // --- LUCES ORIGINALES (Sin cambios) ---
-    const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
-    const amb = new AmbientLight("#ffffff", 0.38);
-    const key = new PointLight("#fff4e4", 45, 50);
-    key.position.set(0, 10, 0); // Luz exactamente arriba
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    key.shadow.bias = -0.0015;
-    const fill = new DirectionalLight("#9fdfff", 0.48);
-    fill.position.set(-7, 3.2, -4);
-    const rim = new DirectionalLight("#ffb25a", 0.32);
-    rim.position.set(-2, 4, -8);
+private buildLights(scene: Scene) {
+  // --- LUCES ---
+  const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
+  const amb = new AmbientLight("#ffffff", 0.38);
+  
+  const key = new PointLight("#fff4e4", 45, 50);
+  key.position.set(0, 10, 0); // Luz exactamente arriba
+  key.castShadow = false;
+  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.bias = -0.0015;
+  
+  const fill = new DirectionalLight("#9fdfff", 0.48);
+  fill.position.set(-7, 3.2, -4);
+  
+  const rim = new DirectionalLight("#ffb25a", 0.32);
+  rim.position.set(-2, 4, -8);
 
-    // --- NUEVO PODIO RGB ---
-    const discRadius = 2.35;
-
-    // 1. El disco base (mantiene tu textura oscura)
-    const disc = new Mesh(
-      new CylinderGeometry(discRadius, discRadius + 0.2, 0.16, 64),
-      new MeshStandardMaterial({ color: "#12131a", roughness: 0.55, metalness: 0.35 }),
-    );
-    disc.position.y = -2.02;
-    disc.receiveShadow = true;
-
-    // 2. El aro RGB (reemplaza al dorado)
-    // He usado un color #ffc43b como base. Puedes cambiarlo a tu gusto.
-    const ring = new Mesh(
-      new TorusGeometry(discRadius - 0.05, 0.025, 16, 100),
-      new MeshStandardMaterial({
-        color: "#ffc43b",
-        emissive: "#ffc43b",
-        emissiveIntensity: 0.8, // Brillo sutil, sin ser cegador
-        roughness: 0.2,
-      }),
-    );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = -1.94;
-
-    // 3. Los foquitos RGB (esferas pequeñas alrededor del borde)
-    const bulbGeo = new SphereGeometry(0.06, 8, 8);
-    const numBulbs = 8; // Cantidad de foquitos
-    const bulbColors = ["#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b", "#ffc43b"]; // Color de los foquitos
-
-    for (let i = 0; i < numBulbs; i++) {
-      const angle = (i / numBulbs) * Math.PI * 2;
-      // Elegir un color de la paleta cíclicamente para dar efecto RGB
-      const colorHex = bulbColors[i % bulbColors.length];
-
-      const bulbMat = new MeshStandardMaterial({
-        color: colorHex,
-        emissive: colorHex,
-        emissiveIntensity: 1.5, // Encendidos, pero sin brillo exagerado
-        roughness: 0.1,
-      });
-
-      const bulb = new Mesh(bulbGeo, bulbMat);
-      bulb.position.set(
-        Math.cos(angle) * (discRadius - 0.1),
-        -1.86, // Un poco más arriba que el aro para que se vean
-        Math.sin(angle) * (discRadius - 0.1),
-      );
-      scene.add(bulb);
-      this.owned.push(bulb);
-      this.mats.push(bulbMat); // Guardar material para limpieza
-    }
-
-    // Añadir todo a la escena y listas de limpieza
-    for (const obj of [hemi, amb, key, key.target, fill, rim, disc, ring]) {
-      scene.add(obj);
-      this.owned.push(obj);
-    }
-    for (const g of [disc.geometry, ring.geometry, bulbGeo]) this.geos.push(g);
-    for (const m of [disc.material, ring.material]) this.mats.push(m);
+  // Añadimos SOLO las luces a la escena (nada de discos ni aros)
+  for (const obj of [hemi, amb, key, key.target, fill, rim]) {
+    scene.add(obj);
+    this.owned.push(obj);
   }
-
+}
+  
   private publishDebug() {
     window.__cubix = {
       phase: () => this.phase,
