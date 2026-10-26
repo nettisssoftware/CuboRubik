@@ -12,14 +12,20 @@ export function SettingsMenu({ onChange }: Props) {
   const { settings, updateSetting } = useSettings();
 
   const handleChange = (key: keyof typeof settings, value: any) => {
-    updateSetting(key, value);
-    onChange({ ...settings, [key]: value });
-    
-    // Lógica especial para la música
-    if (key === "musicEnabled") {
-      value ? audioManager.play() : audioManager.pause();
-    }
-  };
+  // 1. Creamos el nuevo objeto de configuración
+  const newSettings = { ...settings, [key]: value };
+  
+  // 2. Actualizamos el estado local
+  updateSetting(key, value);
+  
+  // 3. Enviamos el objeto COMPLETO al motor
+  onChange(newSettings);
+  
+  // Lógica especial para la música
+  if (key === "musicEnabled") {
+    value ? audioManager.play() : audioManager.pause();
+  }
+};
 
   return (
     <>

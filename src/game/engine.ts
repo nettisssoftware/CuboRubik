@@ -1,7 +1,7 @@
 import {
   AmbientLight,
   DirectionalLight,
-  ExtrudeGeometry,
+  ShapeGeometry,
   Group,
   HemisphereLight,
   Matrix4,
@@ -18,6 +18,7 @@ import {
   SphereGeometry,
   Vector2,
   Vector3,
+  TextureLoader,
   type Intersection,
 } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -216,7 +217,7 @@ export class CubeEngine {
     const distV = bound / (tanV * fill);
     const distH = bound / (tanH * fill);
     this.fitDist = Math.max(distV, distH);
-    
+
     // Zoom ilimitado: eliminamos el clamp superior e inferior
     this.targetRadius = this.fitDist * this.userZoom;
   }
@@ -668,11 +669,11 @@ export class CubeEngine {
     const dist = Math.max(8, Math.hypot(a.x - b.x, a.y - b.y));
     const midX = (a.x + b.x) / 2;
     const midY = (a.y + b.y) / 2;
-    
+
     // Zoom ilimitado en pellizco (quitamos el clamp)
     this.userZoom = pinch.zoom * (pinch.dist / dist);
     this.targetRadius = this.fitDist * this.userZoom;
-    
+
     this.theta = pinch.theta - (midX - pinch.midX) * this.sens;
     this.phi = clamp(pinch.phi - (midY - pinch.midY) * this.sens, 0.18, Math.PI - 0.18);
     this.orbiting = true;
@@ -754,14 +755,17 @@ export class CubeEngine {
   private buildPieces(): Piece[] {
     // 1. La geometría del bloque negro (se mantiene igual)
     const bodyGeo = new RoundedBoxGeometry(BODY, BODY, BODY, 3, 0.078);
-    
-    // 2. NUEVA GEOMETRÍA DE PEGATINA (Cuadrado 2D con esquinas redondeadas perfectas)
-    const stickerSize = 0.82;
-    const stickerRadius = 0.18;
+
+    // --- NUEVA GEOMETRÍA PLANA Y ENRASADA ---
+    // Ajustamos el tamaño para que el margen negro sea idéntico arriba, abajo y a los lados.
+    // Si BODY es 0.98, un tamaño de 0.84 deja un margen de 0.07 en cada lado.
+    const stickerSize = 0.84;
+    const stickerRadius = 0.16; // Curva suave para que se vea como la imagen
     const shape = new Shape();
     const s = stickerSize / 2;
     const r = stickerRadius;
-    
+
+    // Dibujamos el cuadrado con esquinas redondeadas
     shape.moveTo(-s + r, -s);
     shape.lineTo(s - r, -s);
     shape.quadraticCurveTo(s, -s, s, -s + r);
@@ -772,15 +776,8 @@ export class CubeEngine {
     shape.lineTo(-s, -s + r);
     shape.quadraticCurveTo(-s, -s, -s + r, -s);
 
-    const stickerGeo = new ExtrudeGeometry(shape, {
-      depth: 0.04, 
-      bevelEnabled: true,
-      bevelSegments: 2,
-      steps: 1,
-      bevelSize: 0.01,
-      bevelThickness: 0.01,
-    });
-    stickerGeo.center();
+    // ShapeGeometry crea una figura 2D plana (sin grosor)
+    const stickerGeo = new ShapeGeometry(shape);
 
     this.geos.push(bodyGeo, stickerGeo);
 
@@ -800,11 +797,36 @@ export class CubeEngine {
         metalness: 0.15,
         roughness: 0.25,
         emissive: hex, // Devuelve el brillo a las pegatinas
-        emissiveIntensity: 0.35, // Ajustado para que resalten pero no quemen el color
+        emissiveIntensity: 0.2, // Ajustado para que resalten pero no quemen el color
       });
       stickerMat.set(id, mat);
       this.mats.push(mat);
     }
+
+    // --- CARGAR LOGO PERSONALIZADO ---
+const textureLoader = new TextureLoader();
+// Cargamos la imagen desde la carpeta public
+const logoTexture = textureLoader.load("/enterprise-logo.png");
+
+    // Ajustamos la textura para que el logo no toque los bordes (márgenes)
+// 0.6 significa que el logo ocupará el 60% del centro de la pegatina
+logoTexture.repeat.set(0.7, 0.7); 
+// Lo centramos perfectamente
+logoTexture.offset.set(0.2, 0.2); 
+
+    
+// Configuramos el material para que la imagen se adapte bien
+const logoMat = new MeshStandardMaterial({
+  map: logoTexture,
+  transparent: true, // Permite que el fondo blanco se vea a través de los espacios del logo
+  opacity: 1,        // Totalmente opaco donde hay color
+  roughness: 0.3,
+  metalness: 0.1,
+  // Un pequeño brillo para que resalte sobre el blanco
+  emissive: "#ffffff",
+  emissiveIntensity: 0.05,
+});
+this.mats.push(logoMat);
 
     return createSolved().map((data, id) => {
       const mesh = new Group();
@@ -815,13 +837,26 @@ export class CubeEngine {
       body.receiveShadow = true;
       mesh.add(body);
       for (const axis of [0, 1, 2] as const) {
-        const sign = data.home[axis];
-        if (sign === 0) continue;
-        const color = faceColor(axis, sign);
-        const sticker = new Mesh(stickerGeo, stickerMat.get(color)!);
-        placeSticker(sticker, axis, sign);
-        mesh.add(sticker);
-      }
+  const sign = data.home[axis];
+  if (sign === 0) continue;
+  const color = faceColor(axis, sign);
+  
+  // 👇 DETECTAMOS SI ES EL CENTRO BLANCO 👇
+  const isWhiteCenter = color === "W" && data.home[0] === 0 && data.home[1] === 0 && data.home[2] === 0;
+  
+  // 👇 USAMOS EL MATERIAL DEL LOGO SI ES EL CENTRO, SI NO EL COLOR NORMAL 👇
+  const materialToUse = isWhiteCenter ? logoMat : stickerMat.get(color)!;
+  
+  const sticker = new Mesh(stickerGeo, materialToUse);
+  
+  // Etiquetas para el sistema de temas
+  sticker.userData.stickerColor = color; 
+  // Marcamos esto para que el cambio de tema no le borre la textura al logo
+  sticker.userData.hasLogo = isWhiteCenter; 
+
+  placeSticker(sticker, axis, sign);
+  mesh.add(sticker);
+}
       this.cubeRoot.add(mesh);
       return { ...data, mesh };
     });
@@ -831,16 +866,16 @@ export class CubeEngine {
     // --- LUCES ---
     const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
     const amb = new AmbientLight("#ffffff", 0.38);
-    
+
     const key = new PointLight("#fff4e4", 45, 50);
     key.position.set(0, 10, 0); // Luz exactamente arriba
     key.castShadow = false; // Sin sombra porque no hay suelo
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.bias = -0.0015;
-    
+
     const fill = new DirectionalLight("#9fdfff", 0.48);
     fill.position.set(-7, 3.2, -4);
-    
+
     const rim = new DirectionalLight("#ffb25a", 0.32);
     rim.position.set(-2, 4, -8);
 
@@ -850,7 +885,7 @@ export class CubeEngine {
       this.owned.push(obj);
     }
   }
-  
+
   private publishDebug() {
     window.__cubix = {
       phase: () => this.phase,
@@ -861,42 +896,62 @@ export class CubeEngine {
   }
 
   // Método para cambiar la sensibilidad en vivo
-public setSensitivity(val: number) {
-  this.sens = val;
-}
-
-// Método para cambiar los colores en vivo (Skins)
-public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
-  // Aquí defines las paletas (puedes moverlas a palette.ts después)
-  const palettes = {
-    classic: { R: "#de1b24", O: "#ff6a00", W: "#f7f7f2", Y: "#ffd000", G: "#009b48", B: "#0057d9" },
-    neon:    { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
-    pastel:  { R: "#ff6b6b", O: "#ffa502", W: "#f1f2f6", Y: "#ffeda0", G: "#2ed573", B: "#70a1ff" },
-    halloween: { R: "#ff3300", O: "#ff8c00", W: "#e0e0e0", Y: "#ffcc00", G: "#00cc44", B: "#6600cc" },
-  };
-  const colors = palettes[theme];
-
-  // Recorremos todas las piezas y actualizamos el color de las pegatinas
-  for (const piece of this.pieces) {
-    piece.mesh.children.forEach((child) => {
-      if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
-        // Buscamos el color original de la pegatina
-        const colorId = Object.keys(colors).find(key => colors[key as keyof typeof colors] === "#" + child.material.color.getHexString());
-        // Si el color actual coincide con una cara, lo actualizamos
-        if (colorId) {
-          child.material.color.set(colors[colorId as keyof typeof colors]);
-          child.material.emissive.set(colors[colorId as keyof typeof colors]);
-        }
-      }
-    });
+  public setSensitivity(val: number) {
+    this.sens = val;
   }
-}
-  
+
+  public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
+    const palettes = {
+      classic: {
+        R: "#de1b24",
+        O: "#ff6a00",
+        W: "#f7f7f2",
+        Y: "#ffd000",
+        G: "#009b48",
+        B: "#0057d9",
+      },
+      neon: { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
+      pastel: {
+        R: "#ff6b6b",
+        O: "#ffa502",
+        W: "#f1f2f6",
+        Y: "#ffeda0",
+        G: "#2ed573",
+        B: "#70a1ff",
+      },
+      halloween: {
+        R: "#ff3300",
+        O: "#ff8c00",
+        W: "#e0e0e0",
+        Y: "#ffcc00",
+        G: "#00cc44",
+        B: "#6600cc",
+      },
+    };
+    const colors = palettes[theme];
+
+    for (const piece of this.pieces) {
+      piece.mesh.children.forEach((child) => {
+        if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
+
+        if (child.userData.hasLoho) return;
+          
+          // 👇 LEEMOS LA ETIQUETA QUE CREAMOS 👇
+          const colorId = child.userData.stickerColor;
+          if (colorId && colors[colorId as keyof typeof colors]) {
+            const newHex = colors[colorId as keyof typeof colors];
+            child.material.color.set(newHex);
+            child.material.emissive.set(newHex);
+          }
+        }
+      });
+    }
+  }
 }
 
 function placeSticker(mesh: Mesh, axis: Axis, sign: number) {
   // Ajustado para el nuevo grosor de la pegatina (depth 0.04 + bevel 0.01)
-  const o = BODY / 2 + 0.006 + 0.03; 
+  const o = BODY / 2 + 0.002;
   mesh.userData.localNormal = new Vector3(0, 0, 1);
   if (axis === 0) {
     mesh.position.x = sign * o;
