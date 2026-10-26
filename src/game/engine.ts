@@ -19,6 +19,7 @@ import {
   Vector2,
   Vector3,
   TextureLoader,
+  SRGBColorSpace,
   type Intersection,
 } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -756,11 +757,9 @@ export class CubeEngine {
     // 1. La geometría del bloque negro (se mantiene igual)
     const bodyGeo = new RoundedBoxGeometry(BODY, BODY, BODY, 3, 0.078);
 
-    // --- NUEVA GEOMETRÍA PLANA Y ENRASADA ---
-    // Ajustamos el tamaño para que el margen negro sea idéntico arriba, abajo y a los lados.
-    // Si BODY es 0.98, un tamaño de 0.84 deja un margen de 0.07 en cada lado.
+    // --- GEOMETRÍA PLANA Y ENRASADA ---
     const stickerSize = 0.84;
-    const stickerRadius = 0.16; // Curva suave para que se vea como la imagen
+    const stickerRadius = 0.16;
     const shape = new Shape();
     const s = stickerSize / 2;
     const r = stickerRadius;
@@ -776,7 +775,6 @@ export class CubeEngine {
     shape.lineTo(-s, -s + r);
     shape.quadraticCurveTo(-s, -s, -s + r, -s);
 
-    // ShapeGeometry crea una figura 2D plana (sin grosor)
     const stickerGeo = new ShapeGeometry(shape);
 
     this.geos.push(bodyGeo, stickerGeo);
@@ -796,37 +794,36 @@ export class CubeEngine {
         color: hex,
         metalness: 0.15,
         roughness: 0.25,
-        emissive: hex, // Devuelve el brillo a las pegatinas
-        emissiveIntensity: 0.2, // Ajustado para que resalten pero no quemen el color
+        emissive: hex,
+        emissiveIntensity: 0.2,
       });
       stickerMat.set(id, mat);
       this.mats.push(mat);
     }
 
     // --- CARGAR LOGO PERSONALIZADO ---
-const textureLoader = new TextureLoader();
-// Cargamos la imagen desde la carpeta public
-const logoTexture = textureLoader.load("/enterprise-logo.png");
-
-    // Ajustamos la textura para que el logo no toque los bordes (márgenes)
-// 0.6 significa que el logo ocupará el 60% del centro de la pegatina
-logoTexture.repeat.set(0.7, 0.7); 
-// Lo centramos perfectamente
-logoTexture.offset.set(0.2, 0.2); 
-
+    const textureLoader = new TextureLoader();
+    const logoTexture = textureLoader.load("/enterprise-logo.png");
     
-// Configuramos el material para que la imagen se adapte bien
-const logoMat = new MeshStandardMaterial({
-  map: logoTexture,
-  transparent: true, // Permite que el fondo blanco se vea a través de los espacios del logo
-  opacity: 1,        // Totalmente opaco donde hay color
-  roughness: 0.3,
-  metalness: 0.1,
-  // Un pequeño brillo para que resalte sobre el blanco
-  emissive: "#ffffff",
-  emissiveIntensity: 0.05,
-});
-this.mats.push(logoMat);
+    // Corrección de color para que los triángulos de tu logo no se vean lavados
+    logoTexture.colorSpace = SRGBColorSpace;
+    // En Three.js, al aplicar texturas 2D sobre figuras, a veces se voltean.
+    logoTexture.flipY = false; 
+    
+    // Márgenes generosos: 0.7 significa que el logo ocupa el 70% central
+    logoTexture.repeat.set(0.7, 0.7);
+    logoTexture.offset.set(0.15, 0.15);
+
+    const logoMat = new MeshStandardMaterial({
+      map: logoTexture,
+      transparent: true,
+      opacity: 1,
+      roughness: 0.3,
+      metalness: 0.1,
+      emissive: "#ffffff",
+      emissiveIntensity: 0.05,
+    });
+    this.mats.push(logoMat);
 
     return createSolved().map((data, id) => {
       const mesh = new Group();
@@ -836,27 +833,24 @@ this.mats.push(logoMat);
       body.castShadow = true;
       body.receiveShadow = true;
       mesh.add(body);
-      for (const axis of [0, 1, 2] as const) {
-  const sign = data.home[axis];
-  if (sign === 0) continue;
-  const color = faceColor(axis, sign);
-  
-  // 👇 DETECTAMOS SI ES EL CENTRO BLANCO 👇
-  const isWhiteCenter = color === "W" && data.home[0] === 0 && data.home[1] === 0 && data.home[2] === 0;
-  
-  // 👇 USAMOS EL MATERIAL DEL LOGO SI ES EL CENTRO, SI NO EL COLOR NORMAL 👇
-  const materialToUse = isWhiteCenter ? logoMat : stickerMat.get(color)!;
-  
-  const sticker = new Mesh(stickerGeo, materialToUse);
-  
-  // Etiquetas para el sistema de temas
-  sticker.userData.stickerColor = color; 
-  // Marcamos esto para que el cambio de tema no le borre la textura al logo
-  sticker.userData.hasLogo = isWhiteCenter; 
 
-  placeSticker(sticker, axis, sign);
-  mesh.add(sticker);
-}
+      for (const axis of [0, 1, 2] as const) {
+        const sign = data.home[axis];
+        if (sign === 0) continue;
+        const color = faceColor(axis, sign);
+
+        // DETECCIÓN ROBUSTA: Es cara blanca y es un cubo central
+        const isWhiteCenter = color === "W" && data.home.filter((v) => v !== 0).length === 1;
+        
+        const materialToUse = isWhiteCenter ? logoMat : stickerMat.get(color)!;
+        const sticker = new Mesh(stickerGeo, materialToUse);
+        
+        sticker.userData.stickerColor = color;
+        sticker.userData.hasLogo = isWhiteCenter; 
+
+        placeSticker(sticker, axis, sign);
+        mesh.add(sticker);
+      }
       this.cubeRoot.add(mesh);
       return { ...data, mesh };
     });
@@ -879,7 +873,6 @@ this.mats.push(logoMat);
     const rim = new DirectionalLight("#ffb25a", 0.32);
     rim.position.set(-2, 4, -8);
 
-    // Añadimos SOLO las luces a la escena (nada de discos ni aros)
     for (const obj of [hemi, amb, key, key.target, fill, rim]) {
       scene.add(obj);
       this.owned.push(obj);
@@ -903,29 +896,14 @@ this.mats.push(logoMat);
   public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
     const palettes = {
       classic: {
-        R: "#de1b24",
-        O: "#ff6a00",
-        W: "#f7f7f2",
-        Y: "#ffd000",
-        G: "#009b48",
-        B: "#0057d9",
+        R: "#de1b24", O: "#ff6a00", W: "#f7f7f2", Y: "#ffd000", G: "#009b48", B: "#0057d9",
       },
       neon: { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
       pastel: {
-        R: "#ff6b6b",
-        O: "#ffa502",
-        W: "#f1f2f6",
-        Y: "#ffeda0",
-        G: "#2ed573",
-        B: "#70a1ff",
+        R: "#ff6b6b", O: "#ffa502", W: "#f1f2f6", Y: "#ffeda0", G: "#2ed573", B: "#70a1ff",
       },
       halloween: {
-        R: "#ff3300",
-        O: "#ff8c00",
-        W: "#e0e0e0",
-        Y: "#ffcc00",
-        G: "#00cc44",
-        B: "#6600cc",
+        R: "#ff3300", O: "#ff8c00", W: "#e0e0e0", Y: "#ffcc00", G: "#00cc44", B: "#6600cc",
       },
     };
     const colors = palettes[theme];
@@ -933,10 +911,9 @@ this.mats.push(logoMat);
     for (const piece of this.pieces) {
       piece.mesh.children.forEach((child) => {
         if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
+          // CORREGIDO: typo "hasLoho" por "hasLogo"
+          if (child.userData.hasLogo) return;
 
-        if (child.userData.hasLoho) return;
-          
-          // 👇 LEEMOS LA ETIQUETA QUE CREAMOS 👇
           const colorId = child.userData.stickerColor;
           if (colorId && colors[colorId as keyof typeof colors]) {
             const newHex = colors[colorId as keyof typeof colors];

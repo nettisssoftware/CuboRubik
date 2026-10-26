@@ -10,7 +10,7 @@
   --color-primary: #f0b429;
   --color-accent: #3ecfc2;
   --color-border: #2c2c36;
-  --font-secondary: "Russo One", ui-sans-serif, system-ui, sans-serif;
+  --font-base: ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-secondary: "Arvo";
   --radius: 1.25rem;
@@ -25,7 +25,7 @@
     color: var(--color-fg);
     overflow: hidden;
     overscroll-behavior: none;
-    font-family: var(--font-secondary);
+    font-family: var(--font-base);
   }
 
   button:not(:disabled),
@@ -94,7 +94,7 @@
 
 .wordmark {
   margin: 0;
-  font-family: var(--font-secondary);
+  font-family: var(--font-base);
   font-size: clamp(1.55rem, 4.6vw, 2.15rem);
   letter-spacing: 0.28em;
   line-height: 1;
@@ -120,7 +120,7 @@
 
 .prompt {
   margin: 0;
-  font-family: var(--font-secondary);
+  font-family: var(--font-base);
   font-size: clamp(1.28rem, 4.8vw, 2.05rem);
   line-height: 1.28;
   letter-spacing: 0.01em;
@@ -197,7 +197,7 @@
 
 .victory-card h2 {
   margin: 0.2rem 0 0.3rem;
-  font-family: var(--font-secondary);
+  font-family: var(--font-base);
   font-size: clamp(1.55rem, 5.4vw, 2rem);
   letter-spacing: 0.03em;
   line-height: 1.05;

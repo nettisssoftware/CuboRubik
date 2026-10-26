@@ -138,7 +138,7 @@
 }
 
 input:checked + .slider.round {
-  background-color: #ffffff;
+  background-color: #7dd37a;
 }
 
 input:checked + .slider.round:before {
@@ -157,5 +157,5 @@ input:checked + .slider.round:before {
 
 .slider-range {
   width: 100%;
-  accent-color: #ffffff;
+  accent-color: #7dd37a;
 }
