@@ -3,6 +3,10 @@ import { Trophy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Confetti } from "@/game/Confetti";
 import type { CubeApi, Phase } from "@/game/CubeStage";
+// Importamos el menú, el hook de settings y el gestor de audio
+import { SettingsMenu } from "@/components/ui/SettingsMenu";
+import { useSettings } from "@/components/ui/useSettings";
+import { audioManager } from "@/game/audio-manager";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -13,12 +17,17 @@ function Home() {
   const [armed, setArmed] = useState(false);
   const [hint, setHint] = useState(true);
   const [Stage, setStage] = useState<StageComponent | null>(null);
+  
   const api = useRef<CubeApi | null>(null);
   const pendingStart = useRef(false);
   const lastTap = useRef(0);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
+  // --- NUEVO: Configuración del usuario ---
+  const { settings } = useSettings();
+
+  // 1. Cargar el componente 3D de forma dinámica
   useEffect(() => {
     let live = true;
     void import("@/game/CubeStage").then((mod) => {
@@ -28,6 +37,29 @@ function Home() {
       live = false;
     };
   }, []);
+
+  // 2. Lógica de la música al iniciar
+  useEffect(() => {
+    if (settings.musicEnabled) {
+      audioManager.play();
+    }
+  }, [settings.musicEnabled]);
+
+  // 3. Función que recibe los cambios del menú
+  const handleSettingsChange = (newSettings: typeof settings) => {
+    // Aplicamos cambios en tiempo real si el cubo ya está cargado
+    if (api.current) {
+      api.current.setSensitivity(newSettings.cameraSensitivity);
+      api.current.setTheme(newSettings.theme);
+    }
+    
+    // Control de música
+    if (newSettings.musicEnabled) {
+      audioManager.play();
+    } else {
+      audioManager.pause();
+    }
+  };
 
   useEffect(() => {
     if (!armed) return;
@@ -62,6 +94,11 @@ function Home() {
             onFirstMove={() => setHint(false)}
             onApi={(next) => {
               api.current = next;
+              
+              // 4. Aplicamos la configuración guardada en cuanto la API esté lista
+              next.setSensitivity(settings.cameraSensitivity);
+              next.setTheme(settings.theme);
+
               if (pendingStart.current) {
                 pendingStart.current = false;
                 next.start();
@@ -71,6 +108,10 @@ function Home() {
         ) : null}
       </div>
       <div className="vignette" />
+      
+      {/* 5. Añadimos el botón de engranaje y el menú flotante */}
+      <SettingsMenu onChange={handleSettingsChange} />
+
       <header className="hud">
         <div className="brand">
           <p className="wordmark">CUBIX</p>

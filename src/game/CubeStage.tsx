@@ -31,6 +31,8 @@ function Scene(props: Props) {
     propsRef.current.onApi({
       start: () => engine.start(),
       replay: () => engine.replay(),
+      setSensitivity: (val) => engine.setSensitivity(val),
+      setTheme: (theme) => engine.setTheme(theme),
     });
 
     const el = gl.domElement;
@@ -95,5 +97,12 @@ export function CubeStage(props: Props) {
     </Canvas>
   );
 }
+
+export type CubeApi = {
+  start: () => void;
+  replay: () => void;
+  setSensitivity: (val: number) => void; // <-- Añadido
+  setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void; // <-- Añadido
+};
 
 export type { CubeApi, Phase };

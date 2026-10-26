@@ -1,7 +1,7 @@
 import {
   AmbientLight,
-  CylinderGeometry,
   DirectionalLight,
+  ExtrudeGeometry,
   Group,
   HemisphereLight,
   Matrix4,
@@ -14,7 +14,7 @@ import {
   Quaternion,
   Raycaster,
   Scene,
-  TorusGeometry,
+  Shape,
   SphereGeometry,
   Vector2,
   Vector3,
@@ -42,6 +42,8 @@ export type Phase = "ready" | "scrambling" | "playing" | "won";
 export type CubeApi = {
   start: () => void;
   replay: () => void;
+  setSensitivity: (val: number) => void;
+  setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
 };
 
 type Hooks = {
@@ -146,6 +148,7 @@ export class CubeEngine {
   private announcedMove = false;
 
   private theta = 0.62;
+  private sens = 0.0052; // Sensibilidad por defecto
   private phi = 1.02;
   private radius = 12;
   private targetRadius = 12;
@@ -213,11 +216,9 @@ export class CubeEngine {
     const distV = bound / (tanV * fill);
     const distH = bound / (tanH * fill);
     this.fitDist = Math.max(distV, distH);
-    this.targetRadius = clamp(
-      this.fitDist * this.userZoom,
-      this.fitDist * 0.72,
-      this.fitDist * 1.9,
-    );
+    
+    // Zoom ilimitado: eliminamos el clamp superior e inferior
+    this.targetRadius = this.fitDist * this.userZoom;
   }
 
   tick(dt: number) {
@@ -353,12 +354,8 @@ export class CubeEngine {
 
   onWheel(e: WheelEvent) {
     const factor = e.deltaY > 0 ? 1.08 : 0.92;
-    this.userZoom = clamp(this.userZoom * factor, 0.72, 1.9);
-    this.targetRadius = clamp(
-      this.fitDist * this.userZoom,
-      this.fitDist * 0.72,
-      this.fitDist * 1.9,
-    );
+    this.userZoom = this.userZoom * factor; // Zoom ilimitado (quitamos el clamp)
+    this.targetRadius = this.fitDist * this.userZoom;
   }
 
   dispose() {
@@ -637,7 +634,7 @@ export class CubeEngine {
     const now = performance.now();
     const dt = Math.max(0.008, (now - this.downAt) / 1000);
     this.downAt = now;
-    const sens = 0.0052;
+    const sens = this.sens;
     this.theta -= dx * sens;
     this.phi = clamp(this.phi - dy * sens, 0.18, Math.PI - 0.18);
     this.vTheta = clamp((-dx * sens) / dt, -2.2, 2.2);
@@ -671,10 +668,13 @@ export class CubeEngine {
     const dist = Math.max(8, Math.hypot(a.x - b.x, a.y - b.y));
     const midX = (a.x + b.x) / 2;
     const midY = (a.y + b.y) / 2;
-    this.userZoom = clamp(pinch.zoom * (pinch.dist / dist), 0.72, 1.9);
+    
+    // Zoom ilimitado en pellizco (quitamos el clamp)
+    this.userZoom = pinch.zoom * (pinch.dist / dist);
     this.targetRadius = this.fitDist * this.userZoom;
-    this.theta = pinch.theta - (midX - pinch.midX) * 0.0052;
-    this.phi = clamp(pinch.phi - (midY - pinch.midY) * 0.0052, 0.18, Math.PI - 0.18);
+    
+    this.theta = pinch.theta - (midX - pinch.midX) * this.sens;
+    this.phi = clamp(pinch.phi - (midY - pinch.midY) * this.sens, 0.18, Math.PI - 0.18);
     this.orbiting = true;
   }
 
@@ -752,23 +752,55 @@ export class CubeEngine {
   }
 
   private buildPieces(): Piece[] {
+    // 1. La geometría del bloque negro (se mantiene igual)
     const bodyGeo = new RoundedBoxGeometry(BODY, BODY, BODY, 3, 0.078);
-    const stickerGeo = new RoundedBoxGeometry(0.82, 0.82, 0.05, 8, 0.26);
+    
+    // 2. NUEVA GEOMETRÍA DE PEGATINA (Cuadrado 2D con esquinas redondeadas perfectas)
+    const stickerSize = 0.82;
+    const stickerRadius = 0.18;
+    const shape = new Shape();
+    const s = stickerSize / 2;
+    const r = stickerRadius;
+    
+    shape.moveTo(-s + r, -s);
+    shape.lineTo(s - r, -s);
+    shape.quadraticCurveTo(s, -s, s, -s + r);
+    shape.lineTo(s, s - r);
+    shape.quadraticCurveTo(s, s, s - r, s);
+    shape.lineTo(-s + r, s);
+    shape.quadraticCurveTo(-s, s, -s, s - r);
+    shape.lineTo(-s, -s + r);
+    shape.quadraticCurveTo(-s, -s, -s + r, -s);
+
+    const stickerGeo = new ExtrudeGeometry(shape, {
+      depth: 0.04, 
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 1,
+      bevelSize: 0.01,
+      bevelThickness: 0.01,
+    });
+    stickerGeo.center();
+
     this.geos.push(bodyGeo, stickerGeo);
+
     const plastic = new MeshPhysicalMaterial({
       color: "#14151c",
-      roughness: 0.25, // Más liso para que el brillo se note
-      metalness: 0.15, // Menos metal para que el brillo sea blanco
-      clearcoat: 1.0, // Barniz al máximo
-      clearcoatRoughness: 0.1,
+      roughness: 0.3,
+      metalness: 0.1,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.2,
     });
     this.mats.push(plastic);
+
     const stickerMat = new Map<string, MeshStandardMaterial>();
     for (const [id, hex] of Object.entries(FACE_HEX)) {
       const mat = new MeshStandardMaterial({
         color: hex,
-        metalness: 0.1,
+        metalness: 0.15,
         roughness: 0.25,
+        emissive: hex, // Devuelve el brillo a las pegatinas
+        emissiveIntensity: 0.35, // Ajustado para que resalten pero no quemen el color
       });
       stickerMat.set(id, mat);
       this.mats.push(mat);
@@ -795,29 +827,29 @@ export class CubeEngine {
     });
   }
 
-private buildLights(scene: Scene) {
-  // --- LUCES ---
-  const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
-  const amb = new AmbientLight("#ffffff", 0.38);
-  
-  const key = new PointLight("#fff4e4", 45, 50);
-  key.position.set(0, 10, 0); // Luz exactamente arriba
-  key.castShadow = false;
-  key.shadow.mapSize.set(1024, 1024);
-  key.shadow.bias = -0.0015;
-  
-  const fill = new DirectionalLight("#9fdfff", 0.48);
-  fill.position.set(-7, 3.2, -4);
-  
-  const rim = new DirectionalLight("#ffb25a", 0.32);
-  rim.position.set(-2, 4, -8);
+  private buildLights(scene: Scene) {
+    // --- LUCES ---
+    const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
+    const amb = new AmbientLight("#ffffff", 0.38);
+    
+    const key = new PointLight("#fff4e4", 45, 50);
+    key.position.set(0, 10, 0); // Luz exactamente arriba
+    key.castShadow = false; // Sin sombra porque no hay suelo
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.bias = -0.0015;
+    
+    const fill = new DirectionalLight("#9fdfff", 0.48);
+    fill.position.set(-7, 3.2, -4);
+    
+    const rim = new DirectionalLight("#ffb25a", 0.32);
+    rim.position.set(-2, 4, -8);
 
-  // Añadimos SOLO las luces a la escena (nada de discos ni aros)
-  for (const obj of [hemi, amb, key, key.target, fill, rim]) {
-    scene.add(obj);
-    this.owned.push(obj);
+    // Añadimos SOLO las luces a la escena (nada de discos ni aros)
+    for (const obj of [hemi, amb, key, key.target, fill, rim]) {
+      scene.add(obj);
+      this.owned.push(obj);
+    }
   }
-}
   
   private publishDebug() {
     window.__cubix = {
@@ -827,10 +859,44 @@ private buildLights(scene: Scene) {
       solveAsPlayer: () => this.solveAsPlayer(),
     };
   }
+
+  // Método para cambiar la sensibilidad en vivo
+public setSensitivity(val: number) {
+  this.sens = val;
+}
+
+// Método para cambiar los colores en vivo (Skins)
+public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
+  // Aquí defines las paletas (puedes moverlas a palette.ts después)
+  const palettes = {
+    classic: { R: "#de1b24", O: "#ff6a00", W: "#f7f7f2", Y: "#ffd000", G: "#009b48", B: "#0057d9" },
+    neon:    { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
+    pastel:  { R: "#ff6b6b", O: "#ffa502", W: "#f1f2f6", Y: "#ffeda0", G: "#2ed573", B: "#70a1ff" },
+    halloween: { R: "#ff3300", O: "#ff8c00", W: "#e0e0e0", Y: "#ffcc00", G: "#00cc44", B: "#6600cc" },
+  };
+  const colors = palettes[theme];
+
+  // Recorremos todas las piezas y actualizamos el color de las pegatinas
+  for (const piece of this.pieces) {
+    piece.mesh.children.forEach((child) => {
+      if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
+        // Buscamos el color original de la pegatina
+        const colorId = Object.keys(colors).find(key => colors[key as keyof typeof colors] === "#" + child.material.color.getHexString());
+        // Si el color actual coincide con una cara, lo actualizamos
+        if (colorId) {
+          child.material.color.set(colors[colorId as keyof typeof colors]);
+          child.material.emissive.set(colors[colorId as keyof typeof colors]);
+        }
+      }
+    });
+  }
+}
+  
 }
 
 function placeSticker(mesh: Mesh, axis: Axis, sign: number) {
-  const o = BODY / 2 + 0.006 + 0.025;
+  // Ajustado para el nuevo grosor de la pegatina (depth 0.04 + bevel 0.01)
+  const o = BODY / 2 + 0.006 + 0.03; 
   mesh.userData.localNormal = new Vector3(0, 0, 1);
   if (axis === 0) {
     mesh.position.x = sign * o;
