@@ -1,9 +1,7 @@
-// src/components/ui/SettingsMenu.tsx
 import { useState } from "react";
-import { useSettings } from "./useSettings";
-import { audioManager } from "../game/audio-manager";
-import "./SettingsMenu.css";
-
+import { useSettings } from "@/components/ui/useSettings"; // ✅ Ruta corregida
+import { audioManager } from "@/game/audio-manager";      // ✅ Ruta corregida
+import "@/components/ui/SettingsMenu.css";                // ✅ Ruta corregida
 // Props para pasarle la configuración al Engine 3D
 type Props = {
   onChange: (settings: ReturnType<typeof useSettings>["settings"]) => void;
