@@ -20,6 +20,7 @@ import {
   Vector3,
   TextureLoader,
   SRGBColorSpace,
+  ClampToEdgeWrapping,
   type Intersection,
 } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -753,109 +754,150 @@ export class CubeEngine {
     return null;
   }
 
-  private buildPieces(): Piece[] {
-    // 1. La geometría del bloque negro (se mantiene igual)
-    const bodyGeo = new RoundedBoxGeometry(BODY, BODY, BODY, 3, 0.078);
+private buildPieces(): Piece[] {
+  // 1. La geometría del bloque negro (se mantiene igual)
+  const bodyGeo = new RoundedBoxGeometry(BODY, BODY, BODY, 3, 0.078);
 
-    // --- GEOMETRÍA PLANA Y ENRASADA ---
-    const stickerSize = 0.84;
-    const stickerRadius = 0.16;
-    const shape = new Shape();
-    const s = stickerSize / 2;
-    const r = stickerRadius;
+  // --- GEOMETRÍAS DIFERENCIADAS (Estilo GAN) ---
+  const stickerSize = 0.84;
 
-    // Dibujamos el cuadrado con esquinas redondeadas
-    shape.moveTo(-s + r, -s);
-    shape.lineTo(s - r, -s);
-    shape.quadraticCurveTo(s, -s, s, -s + r);
-    shape.lineTo(s, s - r);
-    shape.quadraticCurveTo(s, s, s - r, s);
-    shape.lineTo(-s + r, s);
-    shape.quadraticCurveTo(-s, s, -s, s - r);
-    shape.lineTo(-s, -s + r);
-    shape.quadraticCurveTo(-s, -s, -s + r, -s);
+  // 1. Geometría para las ESQUINAS (Radio sutil)
+  const shapeCorner = new Shape();
+  const sC = stickerSize / 2;
+  const rC = 0.12;
+  shapeCorner.moveTo(-sC + rC, -sC);
+  shapeCorner.lineTo(sC - rC, -sC);
+  shapeCorner.quadraticCurveTo(sC, -sC, sC, -sC + rC);
+  shapeCorner.lineTo(sC, sC - rC);
+  shapeCorner.quadraticCurveTo(sC, sC, sC - rC, sC);
+  shapeCorner.lineTo(-sC + rC, sC);
+  shapeCorner.quadraticCurveTo(-sC, sC, -sC, sC - rC);
+  shapeCorner.lineTo(-sC, -sC + rC);
+  shapeCorner.quadraticCurveTo(-sC, -sC, -sC + rC, -sC);
+  const geoCorner = new ShapeGeometry(shapeCorner);
 
-    const stickerGeo = new ShapeGeometry(shape);
+  // 2. Geometría para los BORDES (Radio pronunciado)
+  const shapeEdge = new Shape();
+  const sE = stickerSize / 2;
+  const rE = 0.26;
+  shapeEdge.moveTo(-sE + rE, -sE);
+  shapeEdge.lineTo(sE - rE, -sE);
+  shapeEdge.quadraticCurveTo(sE, -sE, sE, -sE + rE);
+  shapeEdge.lineTo(sE, sE - rE);
+  shapeEdge.quadraticCurveTo(sE, sE, sE - rE, sE);
+  shapeEdge.lineTo(-sE + rE, sE);
+  shapeEdge.quadraticCurveTo(-sE, sE, -sE, sE - rE);
+  shapeEdge.lineTo(-sE, -sE + rE);
+  shapeEdge.quadraticCurveTo(-sE, -sE, -sE + rE, -sE);
+  const geoEdge = new ShapeGeometry(shapeEdge);
 
-    this.geos.push(bodyGeo, stickerGeo);
+  // 3. Geometría para el CENTRO (Casi círculo perfecto)
+  const shapeCenter = new Shape();
+  const sCent = stickerSize / 2;
+  const rCent = 0.35;
+  shapeCenter.moveTo(-sCent + rCent, -sCent);
+  shapeCenter.lineTo(sCent - rCent, -sCent);
+  shapeCenter.quadraticCurveTo(sCent, -sCent, sCent, -sCent + rCent);
+  shapeCenter.lineTo(sCent, sCent - rCent);
+  shapeCenter.quadraticCurveTo(sCent, sCent, sCent - rCent, sCent);
+  shapeCenter.lineTo(-sCent + rCent, sCent);
+  shapeCenter.quadraticCurveTo(-sCent, sCent, -sCent, sCent - rCent);
+  shapeCenter.lineTo(-sCent, -sCent + rCent);
+  shapeCenter.quadraticCurveTo(-sCent, -sCent, -sCent + rCent, -sCent);
+  const geoCenter = new ShapeGeometry(shapeCenter);
 
-    const plastic = new MeshPhysicalMaterial({
-      color: "#14151c",
-      roughness: 0.3,
-      metalness: 0.1,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.2,
+  this.geos.push(bodyGeo, geoCorner, geoEdge, geoCenter);
+
+  // --- MATERIALES ---
+  const plastic = new MeshPhysicalMaterial({
+    color: "#14151c",
+    roughness: 0.3,
+    metalness: 0.1,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.2,
+  });
+  this.mats.push(plastic);
+
+  const stickerMat = new Map<string, MeshStandardMaterial>();
+  for (const [id, hex] of Object.entries(FACE_HEX)) {
+    const mat = new MeshStandardMaterial({
+      color: hex,
+      metalness: 0.15,
+      roughness: 0.25,
+      emissive: hex,
+      emissiveIntensity: 0.2,
     });
-    this.mats.push(plastic);
-
-    const stickerMat = new Map<string, MeshStandardMaterial>();
-    for (const [id, hex] of Object.entries(FACE_HEX)) {
-      const mat = new MeshStandardMaterial({
-        color: hex,
-        metalness: 0.15,
-        roughness: 0.25,
-        emissive: hex,
-        emissiveIntensity: 0.2,
-      });
-      stickerMat.set(id, mat);
-      this.mats.push(mat);
-    }
-
-    // --- CARGAR LOGO PERSONALIZADO ---
-    const textureLoader = new TextureLoader();
-    const logoTexture = textureLoader.load("/enterprise-logo.png");
-    
-    // Corrección de color para que los triángulos de tu logo no se vean lavados
-    logoTexture.colorSpace = SRGBColorSpace;
-    // En Three.js, al aplicar texturas 2D sobre figuras, a veces se voltean.
-    logoTexture.flipY = false; 
-    
-    // Márgenes generosos: 0.7 significa que el logo ocupa el 70% central
-    logoTexture.repeat.set(0.7, 0.7);
-    logoTexture.offset.set(0.15, 0.15);
-
-    const logoMat = new MeshStandardMaterial({
-      map: logoTexture,
-      transparent: true,
-      opacity: 1,
-      roughness: 0.3,
-      metalness: 0.1,
-      emissive: "#ffffff",
-      emissiveIntensity: 0.05,
-    });
-    this.mats.push(logoMat);
-
-    return createSolved().map((data, id) => {
-      const mesh = new Group();
-      mesh.userData.isCubie = true;
-      mesh.userData.cubieId = id;
-      const body = new Mesh(bodyGeo, plastic);
-      body.castShadow = true;
-      body.receiveShadow = true;
-      mesh.add(body);
-
-      for (const axis of [0, 1, 2] as const) {
-        const sign = data.home[axis];
-        if (sign === 0) continue;
-        const color = faceColor(axis, sign);
-
-        // DETECCIÓN ROBUSTA: Es cara blanca y es un cubo central
-        const isWhiteCenter = color === "W" && data.home.filter((v) => v !== 0).length === 1;
-        
-        const materialToUse = isWhiteCenter ? logoMat : stickerMat.get(color)!;
-        const sticker = new Mesh(stickerGeo, materialToUse);
-        
-        sticker.userData.stickerColor = color;
-        sticker.userData.hasLogo = isWhiteCenter; 
-
-        placeSticker(sticker, axis, sign);
-        mesh.add(sticker);
-      }
-      this.cubeRoot.add(mesh);
-      return { ...data, mesh };
-    });
+    stickerMat.set(id, mat);
+    this.mats.push(mat);
   }
 
+  // --- CARGAR LOGO PERSONALIZADO ---
+  const textureLoader = new TextureLoader();
+  const logoTexture = textureLoader.load("/enterprise-logo.png");
+
+  logoTexture.colorSpace = SRGBColorSpace;
+  logoTexture.flipY = false;
+  logoTexture.wrapS = ClampToEdgeWrapping;
+  logoTexture.wrapT = ClampToEdgeWrapping;
+  logoTexture.center.set(0.5, 0.5);
+  
+  // Ajustamos el tamaño del logo para que quepa bien dentro del centro redondo
+  // Al ser un círculo, el logo no puede ser tan grande como en los bordes.
+  logoTexture.repeat.set(0.65, 0.65); 
+  logoTexture.offset.set(0.175, 0.175);
+
+  const logoMat = new MeshStandardMaterial({
+    map: logoTexture,
+    transparent: true,
+    opacity: 1,
+    roughness: 0.3,
+    metalness: 0.1,
+  });
+  this.mats.push(logoMat);
+
+  // --- CONSTRUCCIÓN DE LAS PIEZAS ---
+  return createSolved().map((data, id) => {
+    const mesh = new Group();
+    mesh.userData.isCubie = true;
+    mesh.userData.cubieId = id;
+    
+    const body = new Mesh(bodyGeo, plastic);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    mesh.add(body);
+
+    for (const axis of [0, 1, 2] as const) {
+      const sign = data.home[axis];
+      if (sign === 0) continue;
+      const color = faceColor(axis, sign);
+
+      // Determinamos el tipo de pieza (1 = centro, 2 = borde, 3 = esquina)
+      const activeFaces = data.home.filter((v) => v !== 0).length;
+      
+      // Elegimos la geometría correcta
+      let currentGeo = geoCorner;
+      if (activeFaces === 2) currentGeo = geoEdge;
+      if (activeFaces === 1) currentGeo = geoCenter;
+
+      // ¿Es el centro blanco? (La cara W con solo 1 pegatina)
+      const isWhiteCenter = color === "W" && activeFaces === 1;
+
+      const materialToUse = isWhiteCenter ? logoMat : stickerMat.get(color)!;
+      const sticker = new Mesh(currentGeo, materialToUse);
+
+      sticker.userData.stickerColor = color;
+      sticker.userData.hasLogo = isWhiteCenter;
+
+      placeSticker(sticker, axis, sign);
+      mesh.add(sticker);
+    }
+    
+    this.cubeRoot.add(mesh);
+    return { ...data, mesh };
+  });
+}
+
+  
   private buildLights(scene: Scene) {
     // --- LUCES ---
     const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
@@ -896,24 +938,45 @@ export class CubeEngine {
   public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
     const palettes = {
       classic: {
-        R: "#de1b24", O: "#ff6a00", W: "#f7f7f2", Y: "#ffd000", G: "#009b48", B: "#0057d9",
+        R: "#de1b24",
+        O: "#ff6a00",
+        W: "#f7f7f2",
+        Y: "#ffd000",
+        G: "#009b48",
+        B: "#0057d9",
       },
       neon: { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
       pastel: {
-        R: "#ff6b6b", O: "#ffa502", W: "#f1f2f6", Y: "#ffeda0", G: "#2ed573", B: "#70a1ff",
+        R: "#ff6b6b",
+        O: "#ffa502",
+        W: "#f1f2f6",
+        Y: "#ffeda0",
+        G: "#2ed573",
+        B: "#70a1ff",
       },
       halloween: {
-        R: "#ff3300", O: "#ff8c00", W: "#e0e0e0", Y: "#ffcc00", G: "#00cc44", B: "#6600cc",
+        R: "#ff3300",
+        O: "#ff8c00",
+        W: "#e0e0e0",
+        Y: "#ffcc00",
+        G: "#00cc44",
+        B: "#6600cc",
       },
     };
     const colors = palettes[theme];
 
     for (const piece of this.pieces) {
       piece.mesh.children.forEach((child) => {
-        if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
-          // CORREGIDO: typo "hasLoho" por "hasLogo"
-          if (child.userData.hasLogo) return;
+        // Si tiene el logo, le cambiamos el color de fondo (el que se ve detrás del PNG)
+        // pero NO le tocamos la textura.
+        if (child.userData.hasLogo) {
+          const newHex = colors["W"]; // Forzamos a que use el blanco del tema actual
+          child.material.color.set(newHex);
+          child.material.emissive.set(newHex);
+          return;
+        }
 
+        if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
           const colorId = child.userData.stickerColor;
           if (colorId && colors[colorId as keyof typeof colors]) {
             const newHex = colors[colorId as keyof typeof colors];
