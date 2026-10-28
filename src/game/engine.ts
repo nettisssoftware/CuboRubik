@@ -1,13 +1,11 @@
 import {
   AmbientLight,
   DirectionalLight,
-  ExtrudeGeometry,
   Group,
   HemisphereLight,
   Matrix4,
   Mesh,
   MeshPhysicalMaterial,
-  MeshStandardMaterial,
   Object3D,
   PerspectiveCamera,
   PointLight,
@@ -15,12 +13,11 @@ import {
   Raycaster,
   Scene,
   Shape,
-  SphereGeometry,
+  ExtrudeGeometry,
   Vector2,
   Vector3,
   type Intersection,
 } from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import {
   applyQuarters,
   createSolved,
@@ -70,7 +67,7 @@ type Anim = {
 };
 
 const SPACING = 1.0;
-const BODY = 0.98;
+const BODY = 0.94; // Ligeramente más pequeño para dejar el canal negro visible
 const AXIS_VEC = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)];
 
 const TURN_MS = 0.16;
@@ -216,7 +213,6 @@ export class CubeEngine {
     const distV = bound / (tanV * fill);
     const distH = bound / (tanH * fill);
     this.fitDist = Math.max(distV, distH);
-
     this.targetRadius = this.fitDist * this.userZoom;
   }
 
@@ -664,10 +660,8 @@ export class CubeEngine {
     const dist = Math.max(8, Math.hypot(a.x - b.x, a.y - b.y));
     const midX = (a.x + b.x) / 2;
     const midY = (a.y + b.y) / 2;
-
     this.userZoom = pinch.zoom * (pinch.dist / dist);
     this.targetRadius = this.fitDist * this.userZoom;
-
     this.theta = pinch.theta - (midX - pinch.midX) * this.sens;
     this.phi = clamp(pinch.phi - (midY - pinch.midY) * this.sens, 0.18, Math.PI - 0.18);
     this.orbiting = true;
@@ -747,17 +741,14 @@ export class CubeEngine {
   }
 
   private buildPieces(): Piece[] {
-    // 1. La geometría del bloque negro (se mantiene igual)
-    const bodyGeo = new RoundedBoxGeometry(BODY, BODY, BODY, 3, 0.078);
-
-    // --- NUEVA GEOMETRÍA CON PERFIL CÓNCAVO (Estilo GAN) ---
-    // Usamos ExtrudeGeometry para darle el bisel del Plano 2
-    const createTileGeometry = (radius: number) => {
-      const size = 0.84; // Deja un canal de ~1mm respecto al bloque de 0.98
+    // --- FUNCIÓN MAESTRA PARA CREAR LAS PIEZAS (STICKERLESS) ---
+    // Genera un cuadrado redondeado con un bisel cóncavo que hace que las piezas encajen
+    // y dejen ver el hueco negro en el centro.
+    const createTileGeometry = (size: number, radius: number) => {
       const shape = new Shape();
       const s = size / 2;
       const r = radius;
-
+      
       shape.moveTo(-s + r, -s);
       shape.lineTo(s - r, -s);
       shape.quadraticCurveTo(s, -s, s, -s + r);
@@ -769,40 +760,36 @@ export class CubeEngine {
       shape.quadraticCurveTo(-s, -s, -s + r, -s);
 
       return new ExtrudeGeometry(shape, {
-        depth: 0.04,           // Grosor de la pieza
-        bevelEnabled: true,    // Bisel para el efecto cóncavo
-        bevelSegments: 2,
-        steps: 1,
-        bevelSize: 0.012,      // Curvatura hacia adentro
-        bevelThickness: 0.012, // Profundidad del bisel
+        depth: BODY * 0.45,     // Profundidad de la pieza (casi la mitad del cubo)
+        bevelEnabled: true,
+        bevelSegments: 4,       // Segmentos suaves para el borde
+        bevelSize: 0.04,        // Cuánto se curva hacia adentro (crea el hueco negro)
+        bevelThickness: 0.04,   // Grosor del borde
       });
     };
 
-    // Creamos las 3 geometrías con los radios de tu plano
-    const geoCorner = createTileGeometry(0.12); // Esquinas (r1)
-    const geoEdge = createTileGeometry(0.18);   // Bordes (radio medio)
-    const geoCenter = createTileGeometry(0.22); // Centro Opción A (cuadrado redondeado)
+    // 1. ESQUINAS (Opción A: Radio sutil)
+    const geoCorner = createTileGeometry(0.94, 0.12); 
+    
+    // 2. BORDES (Radio pronunciado)
+    const geoEdge = createTileGeometry(0.94, 0.20);
+    
+    // 3. CENTRO (Radio muy redondeado)
+    const geoCenter = createTileGeometry(0.94, 0.28);
 
-    this.geos.push(bodyGeo, geoCorner, geoEdge, geoCenter);
+    this.geos.push(geoCorner, geoEdge, geoCenter);
 
     // --- MATERIALES ---
-    const plastic = new MeshPhysicalMaterial({
-      color: "#14151c",
-      roughness: 0.3,
-      metalness: 0.1,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.2,
-    });
-    this.mats.push(plastic);
-
-    const stickerMat = new Map<string, MeshStandardMaterial>();
+    const stickerMat = new Map<string, MeshPhysicalMaterial>();
     for (const [id, hex] of Object.entries(FACE_HEX)) {
-      const mat = new MeshStandardMaterial({
+      const mat = new MeshPhysicalMaterial({
         color: hex,
-        metalness: 0.15,
-        roughness: 0.25,
+        metalness: 0.05,
+        roughness: 0.25,        // Plástico liso y brillante
+        clearcoat: 0.8,         // Barniz para reflejos
+        clearcoatRoughness: 0.2,
         emissive: hex,
-        emissiveIntensity: 0.2,
+        emissiveIntensity: 0.15, // Un brillo sutil para que no se vean apagados en la oscuridad
       });
       stickerMat.set(id, mat);
       this.mats.push(mat);
@@ -814,29 +801,29 @@ export class CubeEngine {
       mesh.userData.isCubie = true;
       mesh.userData.cubieId = id;
       
-      const body = new Mesh(bodyGeo, plastic);
-      body.castShadow = true;
-      body.receiveShadow = true;
-      mesh.add(body);
-
       for (const axis of [0, 1, 2] as const) {
         const sign = data.home[axis];
         if (sign === 0) continue;
         const color = faceColor(axis, sign);
 
+        // Determinamos el tipo de pieza (1 = centro, 2 = borde, 3 = esquina)
         const activeFaces = data.home.filter((v) => v !== 0).length;
         
+        // Elegimos la geometría correcta
         let currentGeo = geoCorner;
         if (activeFaces === 2) currentGeo = geoEdge;
         if (activeFaces === 1) currentGeo = geoCenter;
 
-        // Ya no hay logo, todas usan su material de color
-        const sticker = new Mesh(currentGeo, stickerMat.get(color)!);
+        // Creamos la pieza de color (sin bloque negro base)
+        const tileMat = stickerMat.get(color)!;
+        const tile = new Mesh(currentGeo, tileMat);
+        
+        // Guardamos el color para el sistema de temas
+        tile.userData.stickerColor = color;
 
-        sticker.userData.stickerColor = color;
-
-        placeSticker(sticker, axis, sign);
-        mesh.add(sticker);
+        // Posicionamos la pieza
+        placeTile(tile, axis, sign);
+        mesh.add(tile);
       }
       
       this.cubeRoot.add(mesh);
@@ -890,7 +877,7 @@ export class CubeEngine {
 
     for (const piece of this.pieces) {
       piece.mesh.children.forEach((child) => {
-        if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
+        if (child instanceof Mesh && child.material instanceof MeshPhysicalMaterial) {
           const colorId = child.userData.stickerColor;
           if (colorId && colors[colorId as keyof typeof colors]) {
             const newHex = colors[colorId as keyof typeof colors];
@@ -903,11 +890,14 @@ export class CubeEngine {
   }
 }
 
-function placeSticker(mesh: Mesh, axis: Axis, sign: number) {
-  // El BODY/2 es el borde del bloque negro.
-  // Sumamos la mitad del grosor (0.02) + el bevel (0.012) para que la tapa se apoye encima.
-  const o = BODY / 2 + 0.032; 
+// --- FUNCIÓN AUXILIAR PARA POSICIONAR LAS PIEZAS ---
+function placeTile(mesh: Mesh, axis: Axis, sign: number) {
+  // El centro del cubo está en 0,0,0. 
+  // Para que las piezas formen el cubo, las posicionamos en BODY/2.
+  // Al tener el bisel, la parte exterior de la pieza tocará la coordenada exacta.
+  const o = BODY / 2; 
   mesh.userData.localNormal = new Vector3(0, 0, 1);
+  
   if (axis === 0) {
     mesh.position.x = sign * o;
     mesh.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
