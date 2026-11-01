@@ -70,7 +70,11 @@ type Anim = {
 
 const SPACING = 0.97;
 const BODY = 0.94; // Ligeramente más pequeño para dejar el canal negro visible
-const AXIS_VEC = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)];
+const AXIS_VEC = [
+  new Vector3(1, 0, 0),
+  new Vector3(0, 1, 0),
+  new Vector3(0, 0, 1),
+];
 
 const TURN_MS = 0.16;
 const SCRAMBLE_MS = 0.092;
@@ -82,7 +86,10 @@ class Sfx {
     try {
       const AC =
         window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        (window as unknown as {
+          webkitAudioContext?: typeof AudioContext;
+        }).webkitAudioContext;
+
       if (!AC) return;
       if (!this.ctx) this.ctx = new AC();
       if (this.ctx.state === "suspended") void this.ctx.resume();
@@ -91,17 +98,27 @@ class Sfx {
     }
   }
 
-  private tone(freq: number, dur: number, type: OscillatorType, gain: number, delay = 0) {
+  private tone(
+    freq: number,
+    dur: number,
+    type: OscillatorType,
+    gain: number,
+    delay = 0
+  ) {
     if (!this.ctx) return;
+
     const t = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator();
     const amp = this.ctx.createGain();
+
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t);
     amp.gain.setValueAtTime(gain, t);
     amp.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
     osc.connect(amp);
     amp.connect(this.ctx.destination);
+
     osc.start(t);
     osc.stop(t + dur + 0.02);
   }
@@ -114,18 +131,23 @@ class Sfx {
 
   win() {
     this.unlock();
-    [523, 659, 784, 1046].forEach((n, i) => this.tone(n, 0.2, "triangle", 0.045, i * 0.08));
+    [523, 659, 784, 1046].forEach((n, i) =>
+      this.tone(n, 0.2, "triangle", 0.045, i * 0.08)
+    );
   }
 }
 
 export class CubeEngine {
   readonly cubeRoot = new Group();
+
   private readonly pieces: Piece[];
   private readonly camera: PerspectiveCamera;
   private readonly dom: HTMLElement;
   private readonly hooks: Hooks;
+
   private readonly raycaster = new Raycaster();
   private readonly sfx = new Sfx();
+
   private readonly owned: Object3D[] = [];
   private readonly geos: { dispose: () => void }[] = [];
   private readonly mats: { dispose: () => void }[] = [];
@@ -140,30 +162,46 @@ export class CubeEngine {
   private readonly screen = new Vector2();
 
   phase: Phase = "ready";
+
   private queue: Move[] = [];
   private anim: Anim | null = null;
-  private history: { axis: Axis; layer: Layer; quarters: number }[] = [];
+
+  private history: {
+    axis: Axis;
+    layer: Layer;
+    quarters: number;
+  }[] = [];
+
   private retries = 0;
   private announcedMove = false;
 
   private theta = 0.62;
   private sens = 0.0052;
   private phi = 1.02;
+
   private radius = 12;
   private targetRadius = 12;
   private fitDist = 12;
   private userZoom = 1;
+
   private vTheta = 0;
   private vPhi = 0;
+
   private lookY = 0;
   private time = 0;
 
-  private pointers = new Map<number, { x: number; y: number; travel: number }>();
+  private pointers = new Map<
+    number,
+    { x: number; y: number; travel: number }
+  >();
+
   private mode: "none" | "pending" | "slice" | "orbit" | "pinch" = "none";
+
   private downX = 0;
   private downY = 0;
   private downAt = 0;
   private downButton = 0;
+
   private orbiting = false;
   private autoResumeAt = 0;
 
@@ -190,15 +228,27 @@ export class CubeEngine {
 
   private reduced: boolean;
 
-  constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
+  constructor(opts: {
+    scene: Scene;
+    camera: PerspectiveCamera;
+    dom: HTMLElement;
+    hooks: Hooks;
+  }) {
     this.camera = opts.camera;
     this.dom = opts.dom;
     this.hooks = opts.hooks;
-    this.reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+    this.reduced =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
+      false;
+
     this.pieces = this.buildPieces();
+
     this.buildLights(opts.scene);
+
     opts.scene.add(this.cubeRoot);
     this.owned.push(this.cubeRoot);
+
     this.syncAll();
     this.hooks.onPhase(this.phase);
     this.publishDebug();
@@ -206,43 +256,63 @@ export class CubeEngine {
 
   setViewport(w: number, h: number) {
     if (w < 2 || h < 2) return;
+
     const fov = (this.camera.fov * Math.PI) / 180;
     const aspect = w / h;
     const bound = 2.95;
     const fill = Math.min(w, h) < 700 ? 0.5 : 0.6;
+
     const tanV = Math.tan(fov / 2);
     const tanH = tanV * aspect;
+
     const distV = bound / (tanV * fill);
     const distH = bound / (tanH * fill);
+
     this.fitDist = Math.max(distV, distH);
     this.targetRadius = this.fitDist * this.userZoom;
   }
 
   tick(dt: number) {
     const d = Math.min(dt, 0.05);
+
     this.time += d;
     this.updateCamera(d);
     this.updateMotion(d);
-    const bob = this.phase === "ready" && !this.reduced ? Math.sin(this.time * 1.15) * 0.07 : 0;
-    this.cubeRoot.position.y += (bob - this.cubeRoot.position.y) * (1 - Math.exp(-4 * d));
+
+    const bob =
+      this.phase === "ready" && !this.reduced
+        ? Math.sin(this.time * 1.15) * 0.07
+        : 0;
+
+    this.cubeRoot.position.y +=
+      (bob - this.cubeRoot.position.y) * (1 - Math.exp(-4 * d));
   }
 
   start() {
     if (this.phase !== "ready") return;
+
     this.sfx.unlock();
     this.beginScramble();
   }
 
   replay() {
     if (this.phase !== "won") return;
+
     this.sfx.unlock();
     this.beginScramble();
   }
 
   onPointerDown(e: PointerEvent) {
     if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
+
     this.dom.setPointerCapture?.(e.pointerId);
-    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, travel: 0 });
+
+    this.pointers.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      travel: 0,
+    });
+
     this.vTheta = 0;
     this.vPhi = 0;
     this.autoResumeAt = performance.now() + 1600;
@@ -273,11 +343,13 @@ export class CubeEngine {
     }
 
     const hit = this.pick(e.clientX, e.clientY);
+
     if (!hit) {
       this.mode = "orbit";
       this.orbiting = true;
       return;
     }
+
     this.pendingPiece = hit.piece;
     this.grab.copy(hit.point);
     this.mode = "pending";
@@ -286,8 +358,10 @@ export class CubeEngine {
   onPointerMove(e: PointerEvent) {
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
+
     const dx = e.clientX - p.x;
     const dy = e.clientY - p.y;
+
     p.x = e.clientX;
     p.y = e.clientY;
     p.travel += Math.hypot(dx, dy);
@@ -296,52 +370,72 @@ export class CubeEngine {
       this.updatePinch();
       return;
     }
+
     if (this.mode === "orbit") {
       this.orbitBy(dx, dy);
       return;
     }
+
     if (this.mode === "pending") {
       const tdx = e.clientX - this.downX;
       const tdy = e.clientY - this.downY;
       const dist = Math.hypot(tdx, tdy);
+
       if (dist < 11) return;
+
       const choice = this.chooseAxis(tdx, tdy, dist);
+
       if (choice === "wait") return;
+
       if (choice === null || !this.pendingPiece) {
         this.mode = "orbit";
         this.orbiting = true;
         this.orbitBy(dx, dy);
         return;
       }
+
       this.beginSlice(choice.axis, choice.layer);
       this.accumulate(dx, dy);
       return;
     }
+
     if (this.mode === "slice") this.accumulate(dx, dy);
   }
 
   onPointerUp(e: PointerEvent) {
     const p = this.pointers.get(e.pointerId);
     this.pointers.delete(e.pointerId);
+
     if (!p) return;
 
     if (this.pointers.size === 0) {
-      const tap = this.downButton === 0 && p.travel < 10 && performance.now() - this.downAt < 450;
-      if (tap && this.mode !== "slice" && this.mode !== "pinch") this.hooks.onTap();
+      const tap =
+        this.downButton === 0 &&
+        p.travel < 10 &&
+        performance.now() - this.downAt < 450;
+
+      if (tap && this.mode !== "slice" && this.mode !== "pinch") {
+        this.hooks.onTap();
+      }
+
       if (this.mode === "slice") this.releaseSlice();
+
       this.mode = "none";
       this.orbiting = false;
       this.pinch = null;
       this.pendingPiece = null;
       this.autoResumeAt = performance.now() + 1400;
+
       return;
     }
 
     if (this.mode === "pinch" && this.pointers.size === 1) {
       const rest = this.pointers.values().next().value;
+
       this.mode = "orbit";
       this.orbiting = true;
       this.pinch = null;
+
       if (rest) {
         this.downX = rest.x;
         this.downY = rest.y;
@@ -351,39 +445,54 @@ export class CubeEngine {
 
   onWheel(e: WheelEvent) {
     const factor = e.deltaY > 0 ? 1.08 : 0.92;
+
     this.userZoom = this.userZoom * factor;
     this.targetRadius = this.fitDist * this.userZoom;
   }
 
   dispose() {
-    for (const obj of this.owned) obj.parent?.remove(obj);
+    for (const obj of this.owned) {
+      obj.parent?.remove(obj);
+    }
+
     for (const g of this.geos) g.dispose();
     for (const m of this.mats) m.dispose();
+
     if (window.__cubix) delete window.__cubix;
   }
 
   solveAsPlayer() {
     if (this.anim || this.mode === "slice") return;
+
     const hist = this.history.splice(0);
+
     for (let i = hist.length - 1; i >= 0; i--) {
       const h = hist[i]!;
       applyQuarters(this.pieces, h.axis, h.layer, -h.quarters);
     }
+
     applyQuarters(this.pieces, 1, 1, 1);
+
     this.history = [{ axis: 1, layer: 1, quarters: 1 }];
+
     this.syncAll();
+
     this.queue = [];
     this.phase = "playing";
     this.hooks.onPhase(this.phase);
+
     this.enqueueQuarters(1, 1, -1, true, true);
   }
 
   private beginScramble() {
     this.cancelSlice(true);
+
     this.queue = [];
     this.anim = null;
+
     this.phase = "scrambling";
     this.hooks.onPhase(this.phase);
+
     this.queue.push(...makeScramble(this.reduced ? 16 : 24));
     this.pump();
   }
@@ -399,16 +508,23 @@ export class CubeEngine {
     layer: Layer,
     quarters: number,
     user: boolean,
-    sound: boolean,
+    sound: boolean
   ) {
     const q = ((quarters % 4) + 4) % 4;
     if (q === 0) return;
+
     const dir: Dir = q === 3 ? -1 : 1;
     const steps = q === 3 ? 1 : q;
-    for (let i = 0; i < steps; i++) this.queue.push({ axis, layer, dir });
+
+    for (let i = 0; i < steps; i++) {
+      this.queue.push({ axis, layer, dir });
+    }
+
     if (!this.anim) this.pumpUser = user;
+
     this.pumpSound = sound;
     this.pump();
+
     this.pumpUser = false;
     this.pumpSound = true;
   }
@@ -418,9 +534,11 @@ export class CubeEngine {
 
   private pump(): boolean {
     if (this.anim || this.queue.length === 0) return false;
+
     const move = this.queue.shift()!;
     const user = this.pumpUser && this.phase === "playing";
     const dur = this.phase === "scrambling" ? SCRAMBLE_MS : TURN_MS;
+
     this.anim = {
       axis: move.axis,
       layer: move.layer,
@@ -433,6 +551,7 @@ export class CubeEngine {
       user,
       sound: this.pumpSound,
     };
+
     return true;
   }
 
@@ -441,31 +560,55 @@ export class CubeEngine {
       this.pose(this.slice.bases, this.slice.axis, this.slice.angle);
       return;
     }
+
     if (!this.anim) return;
+
     const anim = this.anim;
+
     anim.elapsed += dt;
+
     const t = Math.min(1, anim.elapsed / anim.dur);
     const e = easeOutCubic(t);
     const angle = anim.from + (anim.to - anim.from) * e;
+
     this.pose(anim.bases, anim.axis, angle);
+
     if (t < 1) return;
+
     this.commitAnim(anim);
   }
 
   private commitAnim(anim: Anim) {
     if (anim.quarters !== 0) {
-      applyQuarters(this.pieces, anim.axis, anim.layer, anim.quarters);
-      this.history.push({ axis: anim.axis, layer: anim.layer, quarters: anim.quarters });
-      if (anim.sound) this.sfx.turn(this.phase === "scrambling");
+      applyQuarters(
+        this.pieces,
+        anim.axis,
+        anim.layer,
+        anim.quarters
+      );
+
+      this.history.push({
+        axis: anim.axis,
+        layer: anim.layer,
+        quarters: anim.quarters,
+      });
+
+      if (anim.sound) {
+        this.sfx.turn(this.phase === "scrambling");
+      }
+
       if (anim.user && !this.announcedMove) {
         this.announcedMove = true;
         this.hooks.onFirstMove();
       }
     }
+
     this.syncAll();
     this.anim = null;
+
     const more = this.pump();
     if (more) return;
+
     if (this.phase === "scrambling") {
       if (isSolved(this.pieces) && this.retries < 1) {
         this.retries += 1;
@@ -473,12 +616,20 @@ export class CubeEngine {
         this.pump();
         return;
       }
+
       this.retries = 0;
       this.phase = "playing";
       this.hooks.onPhase(this.phase);
+
       return;
     }
-    if (this.phase === "playing" && anim.user && anim.quarters !== 0 && isSolved(this.pieces)) {
+
+    if (
+      this.phase === "playing" &&
+      anim.user &&
+      anim.quarters !== 0 &&
+      isSolved(this.pieces)
+    ) {
       this.declareWin();
     }
   }
@@ -493,6 +644,7 @@ export class CubeEngine {
       lastAngle: 0,
       lastT: performance.now(),
     };
+
     this.mode = "slice";
     this.orbiting = false;
   }
@@ -500,24 +652,42 @@ export class CubeEngine {
   private accumulate(dx: number, dy: number) {
     const slice = this.slice;
     if (!slice) return;
+
     const point = this.rotatedGrab(slice.axis, slice.angle);
     const axis = AXIS_VEC[slice.axis];
+
     this.tmpC.crossVectors(axis, point);
+
     const radius = this.tmpC.length();
     if (radius < 0.08) return;
+
     this.tmpC.multiplyScalar(1 / radius);
+
     this.worldDirToScreen(point, this.tmpC);
+
     const pxPerWorld = this.screen.length() / 0.25;
     if (pxPerWorld < 0.4) return;
-    const pixels = (dx * this.screen.x + dy * this.screen.y) / this.screen.length();
+
+    const pixels =
+      (dx * this.screen.x + dy * this.screen.y) /
+      this.screen.length();
+
     const dAngle = pixels / pxPerWorld / radius;
-    slice.angle = clamp(slice.angle + dAngle, -Math.PI * 1.2, Math.PI * 1.2);
+
+    slice.angle = clamp(
+      slice.angle + dAngle,
+      -Math.PI * 1.2,
+      Math.PI * 1.2
+    );
+
     const now = performance.now();
     const dt = (now - slice.lastT) / 1000;
+
     if (dt > 0.001 && dt < 0.08) {
       const inst = (slice.angle - slice.lastAngle) / dt;
       slice.vel = slice.vel * 0.55 + inst * 0.45;
     }
+
     slice.lastAngle = slice.angle;
     slice.lastT = now;
   }
@@ -525,20 +695,26 @@ export class CubeEngine {
   private releaseSlice() {
     const slice = this.slice;
     if (!slice) return;
+
     const quarters = snapQuarters(slice.angle, slice.vel);
     const target = (quarters * Math.PI) / 2;
+
     this.slice = null;
+
     if (Math.abs(target - slice.angle) < 0.001 && quarters === 0) {
       this.syncAll();
       return;
     }
+
     this.anim = {
       axis: slice.axis,
       layer: slice.layer,
       from: slice.angle,
       to: target,
       elapsed: 0,
-      dur: this.reduced ? 0.04 : 0.13 + Math.min(0.08, Math.abs(target - slice.angle) * 0.05),
+      dur: this.reduced
+        ? 0.04
+        : 0.13 + Math.min(0.08, Math.abs(target - slice.angle) * 0.05),
       quarters,
       bases: slice.bases,
       user: true,
@@ -548,12 +724,15 @@ export class CubeEngine {
 
   private cancelSlice(instant: boolean) {
     if (!this.slice) return;
+
     const slice = this.slice;
     this.slice = null;
+
     if (instant || Math.abs(slice.angle) < 0.02) {
       this.syncAll();
       return;
     }
+
     this.anim = {
       axis: slice.axis,
       layer: slice.layer,
@@ -571,76 +750,136 @@ export class CubeEngine {
   private chooseAxis(
     tdx: number,
     tdy: number,
-    dist: number,
+    dist: number
   ): { axis: Axis; layer: Layer } | "wait" | null {
     const piece = this.pendingPiece;
     if (!piece) return null;
+
     const normal = this.hitNormalFromGrab(piece);
     const faceAxis = dominant(normal);
+
     let best: { axis: Axis; score: number } | null = null;
     let second = 0;
+
     for (const axis of [0, 1, 2] as const) {
       if (axis === faceAxis) continue;
+
       this.tmpC.crossVectors(AXIS_VEC[axis], this.grab);
+
       if (this.tmpC.lengthSq() < 1e-6) continue;
+
       this.tmpC.normalize();
       this.worldDirToScreen(this.grab, this.tmpC);
+
       const sl = this.screen.length();
       if (sl < 0.5) continue;
-      const score = (tdx * this.screen.x + tdy * this.screen.y) / sl;
+
+      const score =
+        (tdx * this.screen.x + tdy * this.screen.y) / sl;
+
       const abs = Math.abs(score);
+
       if (!best || abs > Math.abs(best.score)) {
         if (best) second = Math.abs(best.score);
         best = { axis, score };
-      } else if (abs > second) second = abs;
+      } else if (abs > second) {
+        second = abs;
+      }
     }
+
     if (!best) return null;
-    if (Math.abs(best.score) < dist * 0.28) return dist < 30 ? "wait" : null;
-    if (dist < 26 && second > 0 && Math.abs(best.score) < second * 1.25) return "wait";
-    return { axis: best.axis, layer: piece.pos[best.axis] as Layer };
+
+    if (Math.abs(best.score) < dist * 0.28) {
+      return dist < 30 ? "wait" : null;
+    }
+
+    if (
+      dist < 26 &&
+      second > 0 &&
+      Math.abs(best.score) < second * 1.25
+    ) {
+      return "wait";
+    }
+
+    return {
+      axis: best.axis,
+      layer: piece.pos[best.axis] as Layer,
+    };
   }
 
   private hitNormalFromGrab(piece: Piece): Vector3 {
     piece.mesh.worldToLocal(this.tmpN.copy(this.grab));
+
     const ax = Math.abs(this.tmpN.x);
     const ay = Math.abs(this.tmpN.y);
     const az = Math.abs(this.tmpN.z);
-    if (ax > ay && ax > az) this.tmpA.set(Math.sign(this.tmpN.x) || 1, 0, 0);
-    else if (ay > az) this.tmpA.set(0, Math.sign(this.tmpN.y) || 1, 0);
-    else this.tmpA.set(0, 0, Math.sign(this.tmpN.z) || 1);
+
+    if (ax > ay && ax > az) {
+      this.tmpA.set(Math.sign(this.tmpN.x) || 1, 0, 0);
+    } else if (ay > az) {
+      this.tmpA.set(0, Math.sign(this.tmpN.y) || 1, 0);
+    } else {
+      this.tmpA.set(0, 0, Math.sign(this.tmpN.z) || 1);
+    }
+
     return this.tmpA.transformDirection(piece.mesh.matrixWorld);
   }
 
   private rotatedGrab(axis: Axis, angle: number): Vector3 {
-    const r = rotateAround([this.grab.x, this.grab.y, this.grab.z], axis, angle);
+    const r = rotateAround(
+      [this.grab.x, this.grab.y, this.grab.z],
+      axis,
+      angle
+    );
+
     return this.tmpB.set(r[0], r[1], r[2]);
   }
 
   private worldDirToScreen(point: Vector3, dir: Vector3) {
     this.tmpA.copy(point).project(this.camera);
-    this.tmpN.copy(point).addScaledVector(dir, 0.25).project(this.camera);
+
+    this.tmpN
+      .copy(point)
+      .addScaledVector(dir, 0.25)
+      .project(this.camera);
+
     const w = this.dom.clientWidth || 1;
     const h = this.dom.clientHeight || 1;
-    this.screen.set((this.tmpN.x - this.tmpA.x) * 0.5 * w, -(this.tmpN.y - this.tmpA.y) * 0.5 * h);
+
+    this.screen.set(
+      (this.tmpN.x - this.tmpA.x) * 0.5 * w,
+      -(this.tmpN.y - this.tmpA.y) * 0.5 * h
+    );
   }
 
   private orbitBy(dx: number, dy: number) {
     const now = performance.now();
     const dt = Math.max(0.008, (now - this.downAt) / 1000);
+
     this.downAt = now;
+
     const sens = this.sens;
+
     this.theta -= dx * sens;
-    this.phi = clamp(this.phi - dy * sens, 0.18, Math.PI - 0.18);
+    this.phi = clamp(
+      this.phi - dy * sens,
+      0.18,
+      Math.PI - 0.18
+    );
+
     this.vTheta = clamp((-dx * sens) / dt, -2.2, 2.2);
     this.vPhi = clamp((-dy * sens) / dt, -2.2, 2.2);
+
     this.orbiting = true;
   }
 
   private capturePinch() {
     const pts = [...this.pointers.values()];
     if (pts.length < 2) return;
+
     const a = pts[0]!;
     const b = pts[1]!;
+
     this.pinch = {
       dist: Math.hypot(a.x - b.x, a.y - b.y),
       midX: (a.x + b.x) / 2,
@@ -653,65 +892,112 @@ export class CubeEngine {
 
   private updatePinch() {
     if (!this.pinch) this.capturePinch();
+
     const pinch = this.pinch;
     if (!pinch) return;
+
     const pts = [...this.pointers.values()];
     if (pts.length < 2) return;
+
     const a = pts[0]!;
     const b = pts[1]!;
+
     const dist = Math.max(8, Math.hypot(a.x - b.x, a.y - b.y));
     const midX = (a.x + b.x) / 2;
     const midY = (a.y + b.y) / 2;
+
     this.userZoom = pinch.zoom * (pinch.dist / dist);
     this.targetRadius = this.fitDist * this.userZoom;
+
     this.theta = pinch.theta - (midX - pinch.midX) * this.sens;
-    this.phi = clamp(pinch.phi - (midY - pinch.midY) * this.sens, 0.18, Math.PI - 0.18);
+
+    this.phi = clamp(
+      pinch.phi - (midY - pinch.midY) * this.sens,
+      0.18,
+      Math.PI - 0.18
+    );
+
     this.orbiting = true;
   }
 
   private updateCamera(dt: number) {
     const now = performance.now();
-    if (this.phase === "ready" && !this.orbiting && !this.reduced && now > this.autoResumeAt) {
+
+    if (
+      this.phase === "ready" &&
+      !this.orbiting &&
+      !this.reduced &&
+      now > this.autoResumeAt
+    ) {
       this.theta += dt * 0.22;
     }
+
     if (!this.orbiting) {
       this.theta += this.vTheta * dt;
-      this.phi = clamp(this.phi + this.vPhi * dt, 0.18, Math.PI - 0.18);
+
+      this.phi = clamp(
+        this.phi + this.vPhi * dt,
+        0.18,
+        Math.PI - 0.18
+      );
+
       const damp = Math.exp(-3.4 * dt);
+
       this.vTheta *= damp;
       this.vPhi *= damp;
     }
+
     const desiredLook = this.phase === "won" ? -1.15 : 0;
-    this.lookY += (desiredLook - this.lookY) * (1 - Math.exp(-4 * dt));
-    this.radius += (this.targetRadius - this.radius) * (1 - Math.exp(-7 * dt));
+
+    this.lookY +=
+      (desiredLook - this.lookY) * (1 - Math.exp(-4 * dt));
+
+    this.radius +=
+      (this.targetRadius - this.radius) *
+      (1 - Math.exp(-7 * dt));
+
     const sinPhi = Math.sin(this.phi);
+
     this.camera.position.set(
       this.radius * sinPhi * Math.sin(this.theta),
       this.radius * Math.cos(this.phi),
-      this.radius * sinPhi * Math.cos(this.theta),
+      this.radius * sinPhi * Math.cos(this.theta)
     );
+
     this.camera.lookAt(0, this.lookY, 0);
   }
 
   private capture(axis: Axis, layer: Layer): Basis[] {
     const list: Basis[] = [];
+
     for (const piece of this.pieces) {
       if (piece.pos[axis] !== layer) continue;
+
       list.push({
         piece,
         pos: [piece.pos[0], piece.pos[1], piece.pos[2]],
         quat: piece.mesh.quaternion.clone(),
       });
     }
+
     return list;
   }
 
   private pose(bases: Basis[], axis: Axis, angle: number) {
     this.tmpQ.setFromAxisAngle(AXIS_VEC[axis], angle);
+
     for (const b of bases) {
       const p = rotateAround(b.pos, axis, angle);
-      b.piece.mesh.position.set(p[0] * SPACING, p[1] * SPACING, p[2] * SPACING);
-      b.piece.mesh.quaternion.copy(this.tmpQ).multiply(b.quat);
+
+      b.piece.mesh.position.set(
+        p[0] * SPACING,
+        p[1] * SPACING,
+        p[2] * SPACING
+      );
+
+      b.piece.mesh.quaternion
+        .copy(this.tmpQ)
+        .multiply(b.quat);
     }
   }
 
@@ -720,228 +1006,369 @@ export class CubeEngine {
       piece.mesh.position.set(
         piece.pos[0] * SPACING,
         piece.pos[1] * SPACING,
-        piece.pos[2] * SPACING,
+        piece.pos[2] * SPACING
       );
-      quatFromOri(piece.ori, piece.mesh.quaternion, this.tmpA, this.tmpB, this.tmpC);
+
+      quatFromOri(
+        piece.ori,
+        piece.mesh.quaternion,
+        this.tmpA,
+        this.tmpB,
+        this.tmpC
+      );
     }
   }
 
-  private pick(clientX: number, clientY: number): { piece: Piece; point: Vector3 } | null {
+  private pick(
+    clientX: number,
+    clientY: number
+  ): { piece: Piece; point: Vector3 } | null {
     const rect = this.dom.getBoundingClientRect();
+
     this.ndc.set(
       ((clientX - rect.left) / rect.width) * 2 - 1,
-      -((clientY - rect.top) / rect.height) * 2 + 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1
     );
+
     this.raycaster.setFromCamera(this.ndc, this.camera);
+
     this.cubeRoot.updateMatrixWorld(true);
-    const hits = this.raycaster.intersectObjects(this.cubeRoot.children, true);
+
+    const hits = this.raycaster.intersectObjects(
+      this.cubeRoot.children,
+      true
+    );
+
     for (const hit of hits) {
       const piece = pieceFromHit(hit, this.pieces);
-      if (piece) return { piece, point: hit.point.clone() };
+
+      if (piece) {
+        return {
+          piece,
+          point: hit.point.clone(),
+        };
+      }
     }
+
     return null;
   }
 
-private buildPieces(): Piece[] {
-  // 1. EL CUERPO NEGRO (Base)
-  const bodyGeo = new BoxGeometry(0.94, 0.94, 0.94);
-  this.geos.push(bodyGeo);
+  private buildPieces(): Piece[] {
+    // 1. CUERPO NEGRO DE LAS PIEZAS
 
-  const bodyMat = new MeshPhysicalMaterial({
-    color: 0x050505, 
-    roughness: 0.9,  
-    metalness: 0.0,
-  });
-  this.mats.push(bodyMat);
+    const bodyGeo = new BoxGeometry(0.94, 0.94, 0.94);
+    this.geos.push(bodyGeo);
 
-  // Núcleo esférico negro del cubo.
-const coreGeo = new SphereGeometry(0.82, 32, 32);
-this.geos.push(coreGeo);
-
-const core = new Mesh(coreGeo, bodyMat);
-this.cubeRoot.add(core);
-
-  // 2. GEOMETRÍAS DE LOS STICKERS
-
-const size = 0.92;
-const s = size / 2;
-
-// Curvaturas independientes
-const outerR = 0.055;
-const edgeCurve = 0.045;
-const cornerCurve = 0.055;
-const centerR = 0.07;
-
-
-// A. CENTRO: cuadrado con esquinas suavemente redondeadas.
-
-const shapeCenter = new Shape();
-
-shapeCenter.moveTo(-s + centerR, -s);
-shapeCenter.lineTo(s - centerR, -s);
-shapeCenter.quadraticCurveTo(s, -s, s, -s + centerR);
-
-shapeCenter.lineTo(s, s - centerR);
-shapeCenter.quadraticCurveTo(s, s, s - centerR, s);
-
-shapeCenter.lineTo(-s + centerR, s);
-shapeCenter.quadraticCurveTo(-s, s, -s, s - centerR);
-
-shapeCenter.lineTo(-s, -s + centerR);
-shapeCenter.quadraticCurveTo(-s, -s, -s + centerR, -s);
-
-shapeCenter.closePath();
-
-const geoCenter = new ExtrudeGeometry(shapeCenter, {
-  depth: 0.04,
-  bevelEnabled: false,
-});
-
-geoCenter.translate(0, 0, -0.04);
-
-
-// B. ARISTAS: una curva interior pronunciada y esquinas exteriores redondeadas.
-
-const edgeY = s - outerR;
-const controlY = edgeY + (4 / 3) * edgeCurve;
-
-const shapeEdge = new Shape();
-
-shapeEdge.moveTo(-s + outerR, -s);
-shapeEdge.lineTo(s - outerR, -s);
-
-shapeEdge.quadraticCurveTo(
-  s, -s,
-  s, -s + outerR
-);
-
-shapeEdge.lineTo(s, edgeY);
-
-shapeEdge.bezierCurveTo(
-  s, controlY,
-  -s, controlY,
-  -s, edgeY
-);
-
-shapeEdge.lineTo(-s, -s + outerR);
-
-shapeEdge.quadraticCurveTo(
-  -s, -s,
-  -s + outerR, -s
-);
-
-shapeEdge.closePath();
-
-const geoEdge = new ExtrudeGeometry(shapeEdge, {
-  depth: 0.04,
-  bevelEnabled: false,
-});
-
-geoEdge.translate(0, 0, -0.04);
-
-
-// C. ESQUINAS: cuadrado con las cuatro esquinas suavemente redondeadas.
-
-const shapeCorner = new Shape();
-
-shapeCorner.moveTo(-s + cornerCurve, -s);
-shapeCorner.lineTo(s - cornerCurve, -s);
-shapeCorner.quadraticCurveTo(s, -s, s, -s + cornerCurve);
-
-shapeCorner.lineTo(s, s - cornerCurve);
-shapeCorner.quadraticCurveTo(s, s, s - cornerCurve, s);
-
-shapeCorner.lineTo(-s + cornerCurve, s);
-shapeCorner.quadraticCurveTo(-s, s, -s, s - cornerCurve);
-
-shapeCorner.lineTo(-s, -s + cornerCurve);
-shapeCorner.quadraticCurveTo(-s, -s, -s + cornerCurve, -s);
-
-shapeCorner.closePath();
-
-const geoCorner = new ExtrudeGeometry(shapeCorner, {
-  depth: 0.04,
-  bevelEnabled: false,
-});
-
-geoCorner.translate(0, 0, -0.04);
-
-this.geos.push(geoCenter, geoEdge, geoCorner);
-  
-  // 3. MATERIALES
-  const stickerMats = new Map<string, MeshPhysicalMaterial>();
-  for (const [id, hex] of Object.entries(FACE_HEX)) {
-    const mat = new MeshPhysicalMaterial({
-      color: hex,
+    const bodyMat = new MeshPhysicalMaterial({
+      color: 0x050505,
+      roughness: 0.9,
       metalness: 0.0,
-      roughness: 0.15,        
-      clearcoat: 1.0,        
-      clearcoatRoughness: 0.05,
     });
-    stickerMats.set(id, mat);
-    this.mats.push(mat);
+
+    this.mats.push(bodyMat);
+
+    // Núcleo esférico negro con espacio propio.
+    // El radio 0.48 mantiene una separación de 0.02
+    // respecto a las caras interiores de las piezas centrales.
+
+    const coreGeo = new SphereGeometry(0.48, 32, 32);
+    this.geos.push(coreGeo);
+
+    const core = new Mesh(coreGeo, bodyMat);
+    this.cubeRoot.add(core);
+
+    // 2. GEOMETRÍAS DE LOS STICKERS
+
+    const size = 0.92;
+    const s = size / 2;
+
+    // Curvaturas independientes.
+    const outerR = 0.055;
+    const edgeCurve = 0.045;
+    const cornerCurve = 0.055;
+
+    // A. CENTRO: círculo perfecto.
+
+    const shapeCenter = new Shape();
+
+    shapeCenter.absarc(
+      0,
+      0,
+      s,
+      0,
+      Math.PI * 2,
+      false
+    );
+
+    shapeCenter.closePath();
+
+    const geoCenter = new ExtrudeGeometry(shapeCenter, {
+      depth: 0.04,
+      bevelEnabled: false,
+    });
+
+    geoCenter.translate(0, 0, -0.04);
+
+    // B. ARISTAS: curva circular interior
+    // y esquinas exteriores redondeadas.
+
+    const edgeY = s - outerR;
+
+    // Radio de la circunferencia calculado para conservar
+    // exactamente la misma altura máxima de la curva anterior.
+
+    const sagitta = edgeCurve;
+
+    const arcRadius =
+      (s * s + sagitta * sagitta) / (2 * sagitta);
+
+    const arcCenterY =
+      edgeY - (arcRadius - sagitta);
+
+    const arcAngle = Math.atan2(
+      arcRadius - sagitta,
+      s
+    );
+
+    const shapeEdge = new Shape();
+
+    shapeEdge.moveTo(-s + outerR, -s);
+    shapeEdge.lineTo(s - outerR, -s);
+
+    shapeEdge.quadraticCurveTo(
+      s,
+      -s,
+      s,
+      -s + outerR
+    );
+
+    shapeEdge.lineTo(s, edgeY);
+
+    // Arco circular que sustituye a la curva Bézier.
+    // Su punto más alto conserva la altura anterior.
+
+    shapeEdge.absarc(
+      0,
+      arcCenterY,
+      arcRadius,
+      arcAngle,
+      Math.PI - arcAngle,
+      false
+    );
+
+    shapeEdge.lineTo(-s, -s + outerR);
+
+    shapeEdge.quadraticCurveTo(
+      -s,
+      -s,
+      -s + outerR,
+      -s
+    );
+
+    shapeEdge.closePath();
+
+    const geoEdge = new ExtrudeGeometry(shapeEdge, {
+      depth: 0.04,
+      bevelEnabled: false,
+    });
+
+    geoEdge.translate(0, 0, -0.04);
+
+    // C. ESQUINAS: cuadrado con las cuatro esquinas suavemente redondeadas.
+
+    const shapeCorner = new Shape();
+
+    shapeCorner.moveTo(-s + cornerCurve, -s);
+    shapeCorner.lineTo(s - cornerCurve, -s);
+
+    shapeCorner.quadraticCurveTo(
+      s,
+      -s,
+      s,
+      -s + cornerCurve
+    );
+
+    shapeCorner.lineTo(s, s - cornerCurve);
+
+    shapeCorner.quadraticCurveTo(
+      s,
+      s,
+      s - cornerCurve,
+      s
+    );
+
+    shapeCorner.lineTo(-s + cornerCurve, s);
+
+    shapeCorner.quadraticCurveTo(
+      -s,
+      s,
+      -s,
+      s - cornerCurve
+    );
+
+    shapeCorner.lineTo(-s, -s + cornerCurve);
+
+    shapeCorner.quadraticCurveTo(
+      -s,
+      -s,
+      -s + cornerCurve,
+      -s
+    );
+
+    shapeCorner.closePath();
+
+    const geoCorner = new ExtrudeGeometry(shapeCorner, {
+      depth: 0.04,
+      bevelEnabled: false,
+    });
+
+    geoCorner.translate(0, 0, -0.04);
+
+    this.geos.push(
+      geoCenter,
+      geoEdge,
+      geoCorner
+    );
+
+    // 3. MATERIALES
+
+    const stickerMats = new Map<string, MeshPhysicalMaterial>();
+
+    for (const [id, hex] of Object.entries(FACE_HEX)) {
+      const mat = new MeshPhysicalMaterial({
+        color: hex,
+        metalness: 0.0,
+        roughness: 0.15,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
+      });
+
+      stickerMats.set(id, mat);
+      this.mats.push(mat);
+    }
+
+    // 4. CONSTRUCCIÓN DE LAS PIEZAS
+
+    return createSolved().map((data, id) => {
+      const mesh = new Group();
+
+      mesh.userData.isCubie = true;
+      mesh.userData.cubieId = id;
+
+      const activeFaces = data.home.filter(
+        (v) => v !== 0
+      ).length;
+
+      let pieceType: "center" | "edge" | "corner" = "center";
+
+      if (activeFaces === 2) pieceType = "edge";
+      if (activeFaces === 3) pieceType = "corner";
+
+      const baseGeo =
+        pieceType === "center"
+          ? geoCenter
+          : pieceType === "edge"
+            ? geoEdge
+            : geoCorner;
+
+      const body = new Mesh(bodyGeo, bodyMat);
+      mesh.add(body);
+
+      for (const axis of [0, 1, 2] as const) {
+        const sign = data.home[axis];
+        if (sign === 0) continue;
+
+        const color = faceColor(axis, sign);
+        const stickerMat = stickerMats.get(color)!;
+
+        const sticker = new Mesh(
+          baseGeo.clone(),
+          stickerMat
+        );
+
+        sticker.userData.stickerColor = color;
+
+        // Conservamos la orientación existente.
+        orientSticker(
+          sticker,
+          pieceType,
+          axis,
+          sign,
+          data.home
+        );
+
+        // Posición original de las pegatinas.
+        const posOffset = 0.4701;
+
+        if (axis === 0) {
+          sticker.position.set(sign * posOffset, 0, 0);
+        }
+
+        if (axis === 1) {
+          sticker.position.set(0, sign * posOffset, 0);
+        }
+
+        if (axis === 2) {
+          sticker.position.set(0, 0, sign * posOffset);
+        }
+
+        mesh.add(sticker);
+      }
+
+      this.cubeRoot.add(mesh);
+
+      return {
+        ...data,
+        mesh,
+      };
+    });
   }
 
-  // 4. CONSTRUCCIÓN DE LAS PIEZAS
-  return createSolved().map((data, id) => {
-    const mesh = new Group();
-    mesh.userData.isCubie = true;
-    mesh.userData.cubieId = id;
-    
-    const activeFaces = data.home.filter((v) => v !== 0).length;
-    let pieceType: "center" | "edge" | "corner" = "center";
-    if (activeFaces === 2) pieceType = "edge";
-    if (activeFaces === 3) pieceType = "corner";
-
-    const baseGeo = pieceType === "center" ? geoCenter : pieceType === "edge" ? geoEdge : geoCorner;
-
-    const body = new Mesh(bodyGeo, bodyMat);
-    mesh.add(body);
-
-    for (const axis of [0, 1, 2] as const) {
-      const sign = data.home[axis];
-      if (sign === 0) continue;
-
-      const color = faceColor(axis, sign);
-      const stickerMat = stickerMats.get(color)!;
-      
-      const sticker = new Mesh(baseGeo.clone(), stickerMat);
-      sticker.userData.stickerColor = color;
-      
-      // Orientamos la pieza con la nueva lógica
-      orientSticker(sticker, pieceType, axis, sign, data.home);
-      
-      // Posicionamos el sticker (el cuerpo mide 0.94, lo ponemos a 0.4701)
-      const posOffset = 0.4701;
-      if (axis === 0) sticker.position.set(sign * posOffset, 0, 0);
-      if (axis === 1) sticker.position.set(0, sign * posOffset, 0);
-      if (axis === 2) sticker.position.set(0, 0, sign * posOffset);
-
-      mesh.add(sticker);
-    }
-    
-    this.cubeRoot.add(mesh);
-    return { ...data, mesh };
-  });
-}
-  
   private buildLights(scene: Scene) {
-    const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
-    const amb = new AmbientLight("#ffffff", 0.38);
+    const hemi = new HemisphereLight(
+      "#d5e4f5",
+      "#2a2118",
+      0.72
+    );
 
-    const key = new PointLight("#fff4e4", 45, 50);
+    const amb = new AmbientLight(
+      "#ffffff",
+      0.38
+    );
+
+    const key = new PointLight(
+      "#fff4e4",
+      45,
+      50
+    );
+
     key.position.set(0, 10, 0);
     key.castShadow = false;
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.bias = -0.0015;
 
-    const fill = new DirectionalLight("#9fdfff", 0.48);
+    const fill = new DirectionalLight(
+      "#9fdfff",
+      0.48
+    );
+
     fill.position.set(-7, 3.2, -4);
 
-    const rim = new DirectionalLight("#ffb25a", 0.32);
+    const rim = new DirectionalLight(
+      "#ffb25a",
+      0.32
+    );
+
     rim.position.set(-2, 4, -8);
 
-    for (const obj of [hemi, amb, key, key.target, fill, rim]) {
+    for (const obj of [
+      hemi,
+      amb,
+      key,
+      key.target,
+      fill,
+      rim,
+    ]) {
       scene.add(obj);
       this.owned.push(obj);
     }
@@ -960,7 +1387,9 @@ this.geos.push(geoCenter, geoEdge, geoCorner);
     this.sens = val;
   }
 
-  public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
+  public setTheme(
+    theme: "classic" | "neon" | "halloween" | "pastel"
+  ) {
     const palettes = {
       classic: {
         R: "#de1b24",
@@ -970,7 +1399,16 @@ this.geos.push(geoCenter, geoEdge, geoCorner);
         G: "#009b48",
         B: "#0057d9",
       },
-      neon: { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
+
+      neon: {
+        R: "#ff003c",
+        O: "#ff7b00",
+        W: "#f0f0f0",
+        Y: "#ffee00",
+        G: "#00ff41",
+        B: "#00b3ff",
+      },
+
       pastel: {
         R: "#ff6b6b",
         O: "#ffa502",
@@ -979,6 +1417,7 @@ this.geos.push(geoCenter, geoEdge, geoCorner);
         G: "#2ed573",
         B: "#70a1ff",
       },
+
       halloween: {
         R: "#ff3300",
         O: "#ff8c00",
@@ -988,14 +1427,21 @@ this.geos.push(geoCenter, geoEdge, geoCorner);
         B: "#6600cc",
       },
     };
+
     const colors = palettes[theme];
 
     for (const piece of this.pieces) {
       piece.mesh.children.forEach((child) => {
-        if (child instanceof Mesh && child.material instanceof MeshPhysicalMaterial) {
+        if (
+          child instanceof Mesh &&
+          child.material instanceof MeshPhysicalMaterial
+        ) {
           const colorId = child.userData.stickerColor;
+
           if (colorId && colors[colorId as keyof typeof colors]) {
-            const newHex = colors[colorId as keyof typeof colors];
+            const newHex =
+              colors[colorId as keyof typeof colors];
+
             child.material.color.set(newHex);
             child.material.emissive.set(newHex);
           }
@@ -1005,14 +1451,23 @@ this.geos.push(geoCenter, geoEdge, geoCorner);
   }
 }
 
-function pieceFromHit(hit: Intersection, pieces: Piece[]): Piece | null {
+function pieceFromHit(
+  hit: Intersection,
+  pieces: Piece[]
+): Piece | null {
   let obj: Object3D | null = hit.object;
+
   while (obj) {
-    if (obj.userData.isCubie === true && typeof obj.userData.cubieId === "number") {
+    if (
+      obj.userData.isCubie === true &&
+      typeof obj.userData.cubieId === "number"
+    ) {
       return pieces[obj.userData.cubieId as number] ?? null;
     }
+
     obj = obj.parent;
   }
+
   return null;
 }
 
@@ -1020,15 +1475,38 @@ function dominant(n: Vector3): Axis {
   const ax = Math.abs(n.x);
   const ay = Math.abs(n.y);
   const az = Math.abs(n.z);
+
   if (ax > ay && ax > az) return 0;
   if (ay > az) return 1;
+
   return 2;
 }
 
-function quatFromOri(ori: Cubie["ori"], q: Quaternion, x: Vector3, y: Vector3, z: Vector3) {
-  x.set(ori[0][0], ori[0][1], ori[0][2]);
-  y.set(ori[1][0], ori[1][1], ori[1][2]);
-  z.set(ori[2][0], ori[2][1], ori[2][2]);
+function quatFromOri(
+  ori: Cubie["ori"],
+  q: Quaternion,
+  x: Vector3,
+  y: Vector3,
+  z: Vector3
+) {
+  x.set(
+    ori[0][0],
+    ori[0][1],
+    ori[0][2]
+  );
+
+  y.set(
+    ori[1][0],
+    ori[1][1],
+    ori[1][2]
+  );
+
+  z.set(
+    ori[2][0],
+    ori[2][1],
+    ori[2][2]
+  );
+
   basisM.makeBasis(x, y, z);
   q.setFromRotationMatrix(basisM);
 }
@@ -1039,17 +1517,37 @@ function easeOutCubic(t: number) {
   return 1 - (1 - t) ** 3;
 }
 
-function clamp(v: number, min: number, max: number) {
+function clamp(
+  v: number,
+  min: number,
+  max: number
+) {
   return Math.max(min, Math.min(max, v));
 }
 
-function snapQuarters(angle: number, vel: number): number {
+function snapQuarters(
+  angle: number,
+  vel: number
+): number {
   const q = Math.PI / 2;
+
   let guess = angle;
-  if (Math.abs(vel) > 2.4) guess += Math.sign(vel) * q * 0.42;
+
+  if (Math.abs(vel) > 2.4) {
+    guess += Math.sign(vel) * q * 0.42;
+  }
+
   let steps = Math.round(guess / q);
+
   steps = clamp(steps, -2, 2);
-  if (Math.abs(angle) < 0.2 && Math.abs(vel) < 2.4) steps = 0;
+
+  if (
+    Math.abs(angle) < 0.2 &&
+    Math.abs(vel) < 2.4
+  ) {
+    steps = 0;
+  }
+
   return steps;
 }
 
@@ -1061,38 +1559,58 @@ function orientSticker(
   home: Vec3
 ) {
   // Normal de la cara: dirección hacia afuera.
+
   const normal = new Vector3();
 
-  if (axis === 0) normal.set(sign, 0, 0);
-  else if (axis === 1) normal.set(0, sign, 0);
-  else normal.set(0, 0, sign);
+  if (axis === 0) {
+    normal.set(sign, 0, 0);
+  } else if (axis === 1) {
+    normal.set(0, sign, 0);
+  } else {
+    normal.set(0, 0, sign);
+  }
 
   // Los centros no necesitan orientar ninguna curva.
+
   if (type === "center") {
     mesh.quaternion.setFromUnitVectors(
       new Vector3(0, 0, 1),
       normal
     );
+
     return;
   }
 
   // Conservamos la orientación anterior de las esquinas.
+
   if (type === "corner") {
     if (axis === 0) {
-      mesh.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
-      mesh.rotation.z = sign > 0 ? Math.PI : 0;
+      mesh.rotation.y =
+        sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+
+      mesh.rotation.z =
+        sign > 0 ? Math.PI : 0;
     } else if (axis === 1) {
-      mesh.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
-      mesh.rotation.z = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+      mesh.rotation.x =
+        sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+
+      mesh.rotation.z =
+        sign > 0 ? -Math.PI / 2 : Math.PI / 2;
     } else {
-      if (sign < 0) mesh.rotation.y = Math.PI;
-      mesh.rotation.z = sign > 0 ? 0 : Math.PI;
+      if (sign < 0) {
+        mesh.rotation.y = Math.PI;
+      }
+
+      mesh.rotation.z =
+        sign > 0 ? 0 : Math.PI;
     }
+
     return;
   }
 
   // Para las aristas, calculamos hacia dónde está el centro
   // de la cara desde la posición de la pieza.
+
   const inward = new Vector3(
     axis === 0 ? 0 : -home[0],
     axis === 1 ? 0 : -home[1],
@@ -1105,7 +1623,10 @@ function orientSticker(
   // Z = normal de la cara.
   // Y = dirección hacia el centro de la cara.
   // X = eje perpendicular necesario para mantener la orientación.
-  const right = new Vector3().crossVectors(inward, normal).normalize();
+
+  const right = new Vector3()
+    .crossVectors(inward, normal)
+    .normalize();
 
   const correctedUp = new Vector3()
     .crossVectors(normal, right)
