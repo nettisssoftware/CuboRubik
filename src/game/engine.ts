@@ -763,12 +763,12 @@ this.cubeRoot.add(core);
 
   // 2. GEOMETRÍAS DE LOS STICKERS
 
-const size = 0.935;
+const size = 0.92;
 const s = size / 2;
 
 // Curvaturas independientes
 const outerR = 0.055;
-const edgeCurve = 0.14;
+const edgeCurve = 0.045;
 const cornerCurve = 0.055;
 const centerR = 0.07;
 
@@ -797,7 +797,7 @@ const geoCenter = new ExtrudeGeometry(shapeCenter, {
   bevelEnabled: false,
 });
 
-geoCenter.translate(0, 0, -0.025);
+geoCenter.translate(0, 0, -0.04);
 
 
 // B. ARISTAS: una curva interior pronunciada y esquinas exteriores redondeadas.
@@ -837,7 +837,7 @@ const geoEdge = new ExtrudeGeometry(shapeEdge, {
   bevelEnabled: false,
 });
 
-geoEdge.translate(0, 0, -0.025);
+geoEdge.translate(0, 0, -0.04);
 
 
 // C. ESQUINAS: cuadrado con las cuatro esquinas suavemente redondeadas.
@@ -864,7 +864,7 @@ const geoCorner = new ExtrudeGeometry(shapeCorner, {
   bevelEnabled: false,
 });
 
-geoCorner.translate(0, 0, -0.025);
+geoCorner.translate(0, 0, -0.04);
 
 this.geos.push(geoCenter, geoEdge, geoCorner);
   
