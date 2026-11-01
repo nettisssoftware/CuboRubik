@@ -2,12 +2,12 @@ import type { FaceColor } from "./cube-math";
 
 /** Official-style sticker colors. Rendering only — solved state uses face ids. */
 export const FACE_HEX: Record<FaceColor, string> = {
-  R: "#ff6b6b",
-  O: "#ffa502",
+  R: "#ff2424",
+  O: "#f59e00",
   W: "#f1f2f6",
-  Y: "#ffeda0",
-  G: "#2ed573",
-  B: "#70a1ff",
+  Y: "#fed526",
+  G: "#02ff6b",
+  B: "#2771ff",
 };
 
 export const CONFETTI_HEX = [
