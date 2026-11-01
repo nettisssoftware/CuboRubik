@@ -741,160 +741,127 @@ export class CubeEngine {
     return null;
   }
 
-  // --- NUEVAS FUNCIONES DE GEOMETRÍA PARA LOS STICKERS ---
+  private buildPieces(): Piece[] {
+    // 1. EL CUERPO NEGRO (Base)
+    const bodyGeo = new BoxGeometry(0.94, 0.94, 0.94);
+    this.geos.push(bodyGeo);
 
-private createStickerGeometry(type: "center" | "edge" | "corner", axis: Axis, sign: number) {
-  const s = 0.46; // Tamaño base del sticker (casi la mitad de la pieza)
-  const r = 0.08; // Radio de las esquinas exteriores
-  const curve = 0.12; // Profundidad de la curva interior (donde se ve el plástico negro)
-
-  const shape = new Shape();
-
-  // Función auxiliar para dibujar la forma base (cuadrado con esquinas exteriores redondeadas)
-  const drawBaseSquare = (s: number, r: number) => {
-    shape.moveTo(-s + r, -s);
-    shape.lineTo(s - r, -s);
-    shape.quadraticCurveTo(s, -s, s, -s + r);
-    shape.lineTo(s, s - r);
-    shape.quadraticCurveTo(s, s, s - r, s);
-    shape.lineTo(-s + r, s);
-    shape.quadraticCurveTo(-s, s, -s, s - r);
-    shape.lineTo(-s, -s + r);
-    shape.quadraticCurveTo(-s, -s, -s + r, -s);
-  };
-
-  if (type === "center") {
-    // El centro es un cuadrado redondeado en todas sus esquinas
-    drawBaseSquare(s, r);
-  } else {
-    // Para bordes y esquinas, el sticker ocupa el espacio exterior.
-    // El lado que mira al centro del cubo tiene una curva cóncava.
-    // Para simplificar y que encaje perfecto, generamos la forma según su eje.
-    
-    // Definimos la forma dependiendo de hacia dónde mire (esto requiere rotar el shape)
-    // Como es complejo rotar un Shape 3D en todas direcciones, generamos la forma 
-    // mirando hacia el frente (Z+) y luego rotamos el Mesh en placeSticker.
-    
-    shape.moveTo(-s + r, -s); // Esquina inferior izquierda exterior
-    shape.lineTo(s - r, -s);
-    shape.quadraticCurveTo(s, -s, s, -s + r);
-    
-    if (type === "edge") {
-      // Borde: Un lado recto, el lado interior (Y) es cóncavo
-      shape.lineTo(s, s - curve); // Lado derecho
-      shape.quadraticCurveTo(s, s, 0, s); // Curva interior hacia el centro
-      shape.quadraticCurveTo(-s, s, -s, s - curve); // Curva interior izquierda
-      shape.lineTo(-s, -s + r);
-      shape.quadraticCurveTo(-s, -s, -s + r, -s);
-    } else {
-      // Esquina: Dos lados rectos (X e Y), la esquina interior es cóncava
-      shape.lineTo(s, s - curve);
-      shape.quadraticCurveTo(s, s, s - curve, s); // Curva interior esquina
-      shape.lineTo(-s + curve, s);
-      shape.quadraticCurveTo(-s, s, -s, s - curve); // Curva interior lado izquierdo
-      shape.lineTo(-s, -s + r);
-      shape.quadraticCurveTo(-s, -s, -s + r, -s);
-    }
-  }
-
-  // Extruimos la forma para darle un poco de grosor (como una pegatina de plástico)
-  const extrudeSettings = {
-    depth: 0.02, // Grosor de la "pegatina"
-    bevelEnabled: true,
-    bevelSegments: 2,
-    steps: 1,
-    bevelSize: 0.01,
-    bevelThickness: 0.01,
-  };
-
-  const geo = new ExtrudeGeometry(shape, extrudeSettings);
-  
-  // Centrar la geometría en su eje Z (por defecto ExtrudeGeometry crece hacia +Z)
-  geo.translate(0, 0, -0.01);
-  
-  // Rotamos la geometría según el eje para que mire hacia afuera
-  if (axis === 0) {
-    geo.rotateY(sign > 0 ? Math.PI / 2 : -Math.PI / 2);
-  } else if (axis === 1) {
-    geo.rotateX(sign > 0 ? -Math.PI / 2 : Math.PI / 2);
-  } else if (axis === 2 && sign < 0) {
-    geo.rotateY(Math.PI);
-  }
-
-  return geo;
-}
-
-private buildPieces(): Piece[] {
-  // 1. EL CUERPO NEGRO (El plástico base)
-  // Usamos un cubo ligeramente más pequeño para dejar el hueco negro entre piezas.
-  const bodyGeo = new BoxGeometry(0.95, 0.95, 0.95);
-  this.geos.push(bodyGeo);
-
-  const bodyMat = new MeshPhysicalMaterial({
-    color: 0x0a0a0a,       // Negro muy oscuro
-    roughness: 0.7,        // Plástico mate
-    metalness: 0.1,
-  });
-  this.mats.push(bodyMat);
-
-  // 2. MATERIALES DE LOS STICKERS
-  const stickerMats = new Map<string, MeshPhysicalMaterial>();
-  for (const [id, hex] of Object.entries(FACE_HEX)) {
-    const mat = new MeshPhysicalMaterial({
-      color: hex,
-      metalness: 0.05,
-      roughness: 0.2,        // Plástico más liso y brillante
-      clearcoat: 0.8,        // Reflejo tipo plástico pulido
-      clearcoatRoughness: 0.1,
-      emissive: hex,
-      emissiveIntensity: 0.05,
+    const bodyMat = new MeshPhysicalMaterial({
+      color: 0x050505, // Negro profundo
+      roughness: 0.9, // Muy mate
+      metalness: 0.0,
     });
-    stickerMats.set(id, mat);
-    this.mats.push(mat);
+    this.mats.push(bodyMat);
+
+    // 2. GEOMETRÍAS DE LOS STICKERS (Ajuste milimétrico perfecto)
+    const size = 0.94;
+    const s = size / 2; // 0.47
+    const r = 0.06; // Radio de las esquinas exteriores (un poco más sutil)
+    const c = 0.15; // Profundidad de la curva cóncava interior
+
+    // A. Centro (Cuadrado con esquinas redondeadas)
+    const shapeCenter = new Shape();
+    shapeCenter.moveTo(-s + r, -s);
+    shapeCenter.lineTo(s - r, -s);
+    shapeCenter.quadraticCurveTo(s, -s, s, -s + r);
+    shapeCenter.lineTo(s, s - r);
+    shapeCenter.quadraticCurveTo(s, s, s - r, s);
+    shapeCenter.lineTo(-s + r, s);
+    shapeCenter.quadraticCurveTo(-s, s, -s, s - r);
+    shapeCenter.lineTo(-s, -s + r);
+    shapeCenter.quadraticCurveTo(-s, -s, -s + r, -s);
+    const geoCenter = new ExtrudeGeometry(shapeCenter, { depth: 0.015, bevelEnabled: false });
+
+    // B. Arista (Un lado recto exterior, curva cóncava simétrica al centro)
+    const shapeEdge = new Shape();
+    shapeEdge.moveTo(-s + r, -s);
+    shapeEdge.lineTo(s - r, -s);
+    shapeEdge.quadraticCurveTo(s, -s, s, -s + r); // Esquina exterior
+    shapeEdge.lineTo(s, s - c);
+    // Curva cóncava simétrica (baja desde los bordes y toca el centro)
+    shapeEdge.quadraticCurveTo(s, s, 0, s);
+    shapeEdge.quadraticCurveTo(-s, s, -s, s - c);
+    shapeEdge.lineTo(-s, -s + r);
+    shapeEdge.quadraticCurveTo(-s, -s, -s + r, -s);
+    const geoEdge = new ExtrudeGeometry(shapeEdge, { depth: 0.015, bevelEnabled: false });
+
+    // C. Esquina (Dos lados rectos exteriores, curva cóncava en el vértice interior)
+    const shapeCorner = new Shape();
+    shapeCorner.moveTo(-s + r, -s);
+    shapeCorner.lineTo(s - r, -s);
+    shapeCorner.quadraticCurveTo(s, -s, s, -s + r); // Esquina exterior
+    shapeCorner.lineTo(s, s - c);
+    // Curva cóncava en el vértice
+    shapeCorner.quadraticCurveTo(s, s, s - c, s);
+    shapeCorner.lineTo(-s + c, s);
+    // Curva cóncava lateral
+    shapeCorner.quadraticCurveTo(-s, s, -s, s - c);
+    shapeCorner.lineTo(-s, -s + r);
+    shapeCorner.quadraticCurveTo(-s, -s, -s + r, -s);
+    const geoCorner = new ExtrudeGeometry(shapeCorner, { depth: 0.015, bevelEnabled: false });
+
+    this.geos.push(geoCenter, geoEdge, geoCorner);
+
+    // 3. MATERIALES DE LOS STICKERS
+    const stickerMats = new Map<string, MeshPhysicalMaterial>();
+    for (const [id, hex] of Object.entries(FACE_HEX)) {
+      const mat = new MeshPhysicalMaterial({
+        color: hex,
+        metalness: 0.0,
+        roughness: 0.15,
+        clearcoat: 1.0, // Brillo de plástico pulido
+        clearcoatRoughness: 0.05,
+      });
+      stickerMats.set(id, mat);
+      this.mats.push(mat);
+    }
+
+    // 4. CONSTRUCCIÓN DE LAS PIEZAS
+    return createSolved().map((data, id) => {
+      const mesh = new Group();
+      mesh.userData.isCubie = true;
+      mesh.userData.cubieId = id;
+
+      const activeFaces = data.home.filter((v) => v !== 0).length;
+      let pieceType: "center" | "edge" | "corner" = "center";
+      if (activeFaces === 2) pieceType = "edge";
+      if (activeFaces === 3) pieceType = "corner";
+
+      const baseGeo =
+        pieceType === "center" ? geoCenter : pieceType === "edge" ? geoEdge : geoCorner;
+
+      // El cuerpo negro
+      const body = new Mesh(bodyGeo, bodyMat);
+      mesh.add(body);
+
+      for (const axis of [0, 1, 2] as const) {
+        const sign = data.home[axis];
+        if (sign === 0) continue;
+
+        const color = faceColor(axis, sign);
+        const stickerMat = stickerMats.get(color)!;
+
+        // Clonamos la geometría
+        const sticker = new Mesh(baseGeo.clone(), stickerMat);
+        sticker.userData.stickerColor = color;
+
+        // Orientamos la pieza
+        orientSticker(sticker, pieceType, axis, sign);
+
+        // Posicionamos el sticker justo en la superficie (0.4701 para evitar parpadeo)
+        const posOffset = 0.4701;
+        if (axis === 0) sticker.position.set(sign * posOffset, 0, 0);
+        if (axis === 1) sticker.position.set(0, sign * posOffset, 0);
+        if (axis === 2) sticker.position.set(0, 0, sign * posOffset);
+
+        mesh.add(sticker);
+      }
+
+      this.cubeRoot.add(mesh);
+      return { ...data, mesh };
+    });
   }
 
-  // 3. CONSTRUCCIÓN DE LAS PIEZAS
-  return createSolved().map((data, id) => {
-    const mesh = new Group();
-    mesh.userData.isCubie = true;
-    mesh.userData.cubieId = id;
-    
-    // Añadimos el cuerpo negro a TODAS las piezas
-    const body = new Mesh(bodyGeo, bodyMat);
-    mesh.add(body);
-
-    // Contamos cuántas caras visibles tiene la pieza (para saber si es centro, borde o esquina)
-    const activeFaces = data.home.filter((v) => v !== 0).length;
-    let pieceType: "center" | "edge" | "corner" = "center";
-    if (activeFaces === 2) pieceType = "edge";
-    if (activeFaces === 3) pieceType = "corner";
-
-    // Añadimos las pegatinas a las caras visibles
-    for (const axis of [0, 1, 2] as const) {
-      const sign = data.home[axis];
-      if (sign === 0) continue;
-      const color = faceColor(axis, sign);
-
-      const stickerMat = stickerMats.get(color)!;
-      
-      // Generamos la geometría específica para esta cara según el tipo de pieza
-      const stickerGeo = this.createStickerGeometry(pieceType, axis, sign);
-      this.geos.push(stickerGeo);
-
-      const sticker = new Mesh(stickerGeo, stickerMat);
-      sticker.userData.stickerColor = color;
-
-      // Posicionamos la pegatina flotando un pelín sobre el cuerpo negro
-      placeSticker(sticker, axis, sign);
-      
-      mesh.add(sticker);
-    }
-    
-    this.cubeRoot.add(mesh);
-    return { ...data, mesh };
-  });
-}
-  
   private buildLights(scene: Scene) {
     const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
     const amb = new AmbientLight("#ffffff", 0.38);
@@ -932,10 +899,31 @@ private buildPieces(): Piece[] {
 
   public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
     const palettes = {
-      classic: { R: "#de1b24", O: "#ff6a00", W: "#f7f7f2", Y: "#ffd000", G: "#009b48", B: "#0057d9" },
+      classic: {
+        R: "#de1b24",
+        O: "#ff6a00",
+        W: "#f7f7f2",
+        Y: "#ffd000",
+        G: "#009b48",
+        B: "#0057d9",
+      },
       neon: { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
-      pastel: { R: "#ff6b6b", O: "#ffa502", W: "#f1f2f6", Y: "#ffeda0", G: "#2ed573", B: "#70a1ff" },
-      halloween: { R: "#ff3300", O: "#ff8c00", W: "#e0e0e0", Y: "#ffcc00", G: "#00cc44", B: "#6600cc" },
+      pastel: {
+        R: "#ff6b6b",
+        O: "#ffa502",
+        W: "#f1f2f6",
+        Y: "#ffeda0",
+        G: "#2ed573",
+        B: "#70a1ff",
+      },
+      halloween: {
+        R: "#ff3300",
+        O: "#ff8c00",
+        W: "#e0e0e0",
+        Y: "#ffcc00",
+        G: "#00cc44",
+        B: "#6600cc",
+      },
     };
     const colors = palettes[theme];
 
@@ -951,22 +939,6 @@ private buildPieces(): Piece[] {
         }
       });
     }
-  }
-}
-
-function placeSticker(mesh: Mesh, axis: Axis, sign: number) {
-  // El cuerpo mide 0.95, su superficie está en 0.475.
-  // Colocamos el sticker a 0.48 para que "flote" un milímetro sobre el negro.
-  const offset = 0.48;
-  
-  mesh.position.set(0, 0, 0); // Reseteamos posición
-
-  if (axis === 0) {
-    mesh.position.x = sign * offset;
-  } else if (axis === 1) {
-    mesh.position.y = sign * offset;
-  } else {
-    mesh.position.z = sign * offset;
   }
 }
 
@@ -1016,6 +988,37 @@ function snapQuarters(angle: number, vel: number): number {
   steps = clamp(steps, -2, 2);
   if (Math.abs(angle) < 0.2 && Math.abs(vel) < 2.4) steps = 0;
   return steps;
+}
+
+function orientSticker(mesh: Mesh, type: "center" | "edge" | "corner", axis: Axis, sign: number) {
+  // 1. Orientación del plano Z (la cara)
+  if (axis === 0) mesh.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+  else if (axis === 1) mesh.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+  else if (axis === 2 && sign < 0) mesh.rotation.y = Math.PI;
+
+  // 2. Orientación de la curva interior (Rotación Z local)
+  if (type === "center") return;
+
+  let zRot = 0;
+
+  if (axis === 2) {
+    // Frente / Atrás
+    if (type === "edge") zRot = Math.PI;
+    if (type === "corner") zRot = Math.PI * 1.5;
+    if (sign === -1) zRot += Math.PI;
+  } else if (axis === 0) {
+    // Derecha / Izquierda
+    if (type === "edge") zRot = Math.PI / 2;
+    if (type === "corner") zRot = Math.PI;
+    if (sign === -1) zRot += Math.PI;
+  } else if (axis === 1) {
+    // Arriba / Abajo
+    if (type === "edge") zRot = 0;
+    if (type === "corner") zRot = -Math.PI / 2;
+    if (sign === -1) zRot += Math.PI;
+  }
+
+  mesh.rotation.z = zRot;
 }
 
 declare global {
