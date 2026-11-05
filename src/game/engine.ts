@@ -17,7 +17,6 @@ import {
   Vector2,
   Vector3,
   BoxGeometry,
-  SphereGeometry,
   type Intersection,
 } from "three";
 import {
@@ -69,7 +68,9 @@ type Anim = {
 };
 
 const SPACING = 0.97;
-const BODY = 0.94; // Ligeramente más pequeño para dejar el canal negro visible
+// El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
+// Esto hace que el negro quede "hundido" y no sobresalga por los lados.
+const BODY_SIZE = 0.90; 
 const AXIS_VEC = [
   new Vector3(1, 0, 0),
   new Vector3(0, 1, 0),
@@ -1055,8 +1056,8 @@ export class CubeEngine {
 
   private buildPieces(): Piece[] {
     // 1. CUERPO NEGRO DE LAS PIEZAS
-
-    const bodyGeo = new BoxGeometry(0.94, 0.94, 0.94);
+    // Más pequeño que los stickers para que no sobresalga.
+    const bodyGeo = new BoxGeometry(BODY_SIZE, BODY_SIZE, BODY_SIZE);
     this.geos.push(bodyGeo);
 
     const bodyMat = new MeshPhysicalMaterial({
@@ -1067,171 +1068,95 @@ export class CubeEngine {
 
     this.mats.push(bodyMat);
 
-    // Núcleo esférico negro con espacio propio.
-    // El radio 0.48 mantiene una separación de 0.02
-    // respecto a las caras interiores de las piezas centrales.
+    // 2. GEOMETRÍAS DE LOS STICKERS (Basadas en tu ilustración)
+    
+    // Sticker size es 0.98 para cubrir casi todo el espacio (SPACING=0.97)
+    // Esto crea el efecto de "margen mínimo".
+    const s = 0.98 / 2; 
+    const posOffset = (BODY_SIZE / 2) + 0.001; // Justo en la superficie del cuerpo negro
 
-    const coreGeo = new SphereGeometry(0.48, 32, 32);
-    this.geos.push(coreGeo);
-
-    const core = new Mesh(coreGeo, bodyMat);
-    this.cubeRoot.add(core);
-
-    // 2. GEOMETRÍAS DE LOS STICKERS
-
-    const size = 0.92;
-    const s = size / 2;
-
-    // Curvaturas independientes.
-    const outerR = 0.055;
-    const edgeCurve = 0.045;
-    const cornerCurve = 0.055;
-
-    // A. CENTRO: círculo perfecto.
-
+    // --- A. CENTRO: Cuadrado con esquinas redondeadas ---
     const shapeCenter = new Shape();
-
-    shapeCenter.absarc(
-      0,
-      0,
-      s,
-      0,
-      Math.PI * 2,
-      false
-    );
-
+    const centerR = 0.22; // Radio de redondeo pronunciado
+    
+    shapeCenter.moveTo(-s + centerR, -s);
+    shapeCenter.lineTo(s - centerR, -s);
+    shapeCenter.quadraticCurveTo(s, -s, s, -s + centerR);
+    shapeCenter.lineTo(s, s - centerR);
+    shapeCenter.quadraticCurveTo(s, s, s - centerR, s);
+    shapeCenter.lineTo(-s + centerR, s);
+    shapeCenter.quadraticCurveTo(-s, s, -s, s - centerR);
+    shapeCenter.lineTo(-s, -s + centerR);
+    shapeCenter.quadraticCurveTo(-s, -s, -s + centerR, -s);
     shapeCenter.closePath();
 
     const geoCenter = new ExtrudeGeometry(shapeCenter, {
       depth: 0.04,
       bevelEnabled: false,
     });
-
     geoCenter.translate(0, 0, -0.04);
 
-    // B. ARISTAS: curva circular interior
-    // y esquinas exteriores redondeadas.
-
-    const edgeY = s - outerR;
-
-    // Radio de la circunferencia calculado para conservar
-    // exactamente la misma altura máxima de la curva anterior.
-
-    const sagitta = edgeCurve;
-
-    const arcRadius =
-      (s * s + sagitta * sagitta) / (2 * sagitta);
-
-    const arcCenterY =
-      edgeY - (arcRadius - sagitta);
-
-    const arcAngle = Math.atan2(
-      arcRadius - sagitta,
-      s
-    );
-
+    // --- B. ARISTAS: Un lado recto, el interior curvado ---
+    // La curva interior apunta hacia el centro del cubo.
     const shapeEdge = new Shape();
+    const edgeR = 0.08; // Radio del redondeo exterior
+    const innerCurve = 0.4; // Profundidad de la curva interior
 
-    shapeEdge.moveTo(-s + outerR, -s);
-    shapeEdge.lineTo(s - outerR, -s);
-
-    shapeEdge.quadraticCurveTo(
-      s,
-      -s,
-      s,
-      -s + outerR
-    );
-
-    shapeEdge.lineTo(s, edgeY);
-
-    // Arco circular que sustituye a la curva Bézier.
-    // Su punto más alto conserva la altura anterior.
-
-    shapeEdge.absarc(
-      0,
-      arcCenterY,
-      arcRadius,
-      arcAngle,
-      Math.PI - arcAngle,
-      false
-    );
-
-    shapeEdge.lineTo(-s, -s + outerR);
-
-    shapeEdge.quadraticCurveTo(
-      -s,
-      -s,
-      -s + outerR,
-      -s
-    );
-
+    // Lado exterior recto
+    shapeEdge.moveTo(-s + edgeR, -s);
+    shapeEdge.lineTo(s - edgeR, -s);
+    shapeEdge.quadraticCurveTo(s, -s, s, -s + edgeR);
+    shapeEdge.lineTo(s, s); // Lado recto largo
+    shapeEdge.lineTo(-s, s);
+    shapeEdge.lineTo(-s, -s + edgeR);
+    shapeEdge.quadraticCurveTo(-s, -s, -s + edgeR, -s);
+    
+    // Curva interior (hacia el centro)
+    // Usamos una curva bezier para simular el arco profundo
+    shapeEdge.moveTo(-s, s); 
+    shapeEdge.quadraticCurveTo(0, s - innerCurve, s, s);
     shapeEdge.closePath();
 
     const geoEdge = new ExtrudeGeometry(shapeEdge, {
       depth: 0.04,
       bevelEnabled: false,
     });
-
     geoEdge.translate(0, 0, -0.04);
 
-    // C. ESQUINAS: cuadrado con las cuatro esquinas suavemente redondeadas.
-
+    // --- C. ESQUINAS: Lados exteriores rectos, interior redondeado ---
     const shapeCorner = new Shape();
+    const cornerR = 0.05; // Muy poco redondeo en el exterior
+    const innerCornerR = 0.25; // Redondeo interior suave
 
-    shapeCorner.moveTo(-s + cornerCurve, -s);
-    shapeCorner.lineTo(s - cornerCurve, -s);
-
-    shapeCorner.quadraticCurveTo(
-      s,
-      -s,
-      s,
-      -s + cornerCurve
-    );
-
-    shapeCorner.lineTo(s, s - cornerCurve);
-
-    shapeCorner.quadraticCurveTo(
-      s,
-      s,
-      s - cornerCurve,
-      s
-    );
-
-    shapeCorner.lineTo(-s + cornerCurve, s);
-
-    shapeCorner.quadraticCurveTo(
-      -s,
-      s,
-      -s,
-      s - cornerCurve
-    );
-
-    shapeCorner.lineTo(-s, -s + cornerCurve);
-
-    shapeCorner.quadraticCurveTo(
-      -s,
-      -s,
-      -s + cornerCurve,
-      -s
-    );
-
+    shapeCorner.moveTo(-s + cornerR, -s);
+    shapeCorner.lineTo(s - cornerR, -s);
+    shapeCorner.quadraticCurveTo(s, -s, s, -s + cornerR);
+    shapeCorner.lineTo(s, s - cornerR);
+    shapeCorner.quadraticCurveTo(s, s, s - cornerR, s);
+    shapeCorner.lineTo(-s + cornerR, s);
+    shapeCorner.quadraticCurveTo(-s, s, -s, s - cornerR);
+    shapeCorner.lineTo(-s, -s + cornerR);
+    shapeCorner.quadraticCurveTo(-s, -s, -s + cornerR, -s);
     shapeCorner.closePath();
+
+    // Hueco interior para la esquina
+    const hole = new Shape();
+    hole.moveTo(-s + innerCornerR, -s + innerCornerR);
+    hole.lineTo(s - innerCornerR, -s + innerCornerR);
+    hole.lineTo(s - innerCornerR, s - innerCornerR);
+    hole.lineTo(-s + innerCornerR, s - innerCornerR);
+    hole.closePath();
+    shapeCorner.holes.push(hole);
 
     const geoCorner = new ExtrudeGeometry(shapeCorner, {
       depth: 0.04,
       bevelEnabled: false,
     });
-
     geoCorner.translate(0, 0, -0.04);
 
-    this.geos.push(
-      geoCenter,
-      geoEdge,
-      geoCorner
-    );
+    this.geos.push(geoCenter, geoEdge, geoCorner);
 
     // 3. MATERIALES
-
     const stickerMats = new Map<string, MeshPhysicalMaterial>();
 
     for (const [id, hex] of Object.entries(FACE_HEX)) {
@@ -1248,17 +1173,13 @@ export class CubeEngine {
     }
 
     // 4. CONSTRUCCIÓN DE LAS PIEZAS
-
     return createSolved().map((data, id) => {
       const mesh = new Group();
 
       mesh.userData.isCubie = true;
       mesh.userData.cubieId = id;
 
-      const activeFaces = data.home.filter(
-        (v) => v !== 0
-      ).length;
-
+      const activeFaces = data.home.filter((v) => v !== 0).length;
       let pieceType: "center" | "edge" | "corner" = "center";
 
       if (activeFaces === 2) pieceType = "edge";
@@ -1281,14 +1202,9 @@ export class CubeEngine {
         const color = faceColor(axis, sign);
         const stickerMat = stickerMats.get(color)!;
 
-        const sticker = new Mesh(
-          baseGeo.clone(),
-          stickerMat
-        );
-
+        const sticker = new Mesh(baseGeo.clone(), stickerMat);
         sticker.userData.stickerColor = color;
 
-        // Conservamos la orientación existente.
         orientSticker(
           sticker,
           pieceType,
@@ -1297,78 +1213,36 @@ export class CubeEngine {
           data.home
         );
 
-        // Posición original de las pegatinas.
-        const posOffset = 0.4701;
-
-        if (axis === 0) {
-          sticker.position.set(sign * posOffset, 0, 0);
-        }
-
-        if (axis === 1) {
-          sticker.position.set(0, sign * posOffset, 0);
-        }
-
-        if (axis === 2) {
-          sticker.position.set(0, 0, sign * posOffset);
-        }
+        // Posicionar el sticker justo en la superficie del cuerpo negro
+        if (axis === 0) sticker.position.set(sign * posOffset, 0, 0);
+        if (axis === 1) sticker.position.set(0, sign * posOffset, 0);
+        if (axis === 2) sticker.position.set(0, 0, sign * posOffset);
 
         mesh.add(sticker);
       }
 
       this.cubeRoot.add(mesh);
 
-      return {
-        ...data,
-        mesh,
-      };
+      return { ...data, mesh };
     });
   }
 
   private buildLights(scene: Scene) {
-    const hemi = new HemisphereLight(
-      "#d5e4f5",
-      "#2a2118",
-      0.72
-    );
-
-    const amb = new AmbientLight(
-      "#ffffff",
-      0.38
-    );
-
-    const key = new PointLight(
-      "#fff4e4",
-      45,
-      50
-    );
-
+    const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
+    const amb = new AmbientLight("#ffffff", 0.38);
+    const key = new PointLight("#fff4e4", 45, 50);
     key.position.set(0, 10, 0);
     key.castShadow = false;
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.bias = -0.0015;
 
-    const fill = new DirectionalLight(
-      "#9fdfff",
-      0.48
-    );
-
+    const fill = new DirectionalLight("#9fdfff", 0.48);
     fill.position.set(-7, 3.2, -4);
 
-    const rim = new DirectionalLight(
-      "#ffb25a",
-      0.32
-    );
-
+    const rim = new DirectionalLight("#ffb25a", 0.32);
     rim.position.set(-2, 4, -8);
 
-    for (const obj of [
-      hemi,
-      amb,
-      key,
-      key.target,
-      fill,
-      rim,
-    ]) {
+    for (const obj of [hemi, amb, key, key.target, fill, rim]) {
       scene.add(obj);
       this.owned.push(obj);
     }
@@ -1387,44 +1261,19 @@ export class CubeEngine {
     this.sens = val;
   }
 
-  public setTheme(
-    theme: "classic" | "neon" | "halloween" | "pastel"
-  ) {
+  public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
     const palettes = {
       classic: {
-        R: "#de1b24",
-        O: "#ff6a00",
-        W: "#f7f7f2",
-        Y: "#ffd000",
-        G: "#009b48",
-        B: "#0057d9",
+        R: "#de1b24", O: "#ff6a00", W: "#f7f7f2", Y: "#ffd000", G: "#009b48", B: "#0057d9",
       },
-
       neon: {
-        R: "#ff003c",
-        O: "#ff7b00",
-        W: "#f0f0f0",
-        Y: "#ffee00",
-        G: "#00ff41",
-        B: "#00b3ff",
+        R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff",
       },
-
       pastel: {
-        R: "#ff6b6b",
-        O: "#ffa502",
-        W: "#f1f2f6",
-        Y: "#ffeda0",
-        G: "#2ed573",
-        B: "#70a1ff",
+        R: "#ff6b6b", O: "#ffa502", W: "#f1f2f6", Y: "#ffeda0", G: "#2ed573", B: "#70a1ff",
       },
-
       halloween: {
-        R: "#ff3300",
-        O: "#ff8c00",
-        W: "#e0e0e0",
-        Y: "#ffcc00",
-        G: "#00cc44",
-        B: "#6600cc",
+        R: "#ff3300", O: "#ff8c00", W: "#e0e0e0", Y: "#ffcc00", G: "#00cc44", B: "#6600cc",
       },
     };
 
@@ -1432,16 +1281,10 @@ export class CubeEngine {
 
     for (const piece of this.pieces) {
       piece.mesh.children.forEach((child) => {
-        if (
-          child instanceof Mesh &&
-          child.material instanceof MeshPhysicalMaterial
-        ) {
+        if (child instanceof Mesh && child.material instanceof MeshPhysicalMaterial) {
           const colorId = child.userData.stickerColor;
-
           if (colorId && colors[colorId as keyof typeof colors]) {
-            const newHex =
-              colors[colorId as keyof typeof colors];
-
+            const newHex = colors[colorId as keyof typeof colors];
             child.material.color.set(newHex);
             child.material.emissive.set(newHex);
           }
@@ -1451,20 +1294,13 @@ export class CubeEngine {
   }
 }
 
-function pieceFromHit(
-  hit: Intersection,
-  pieces: Piece[]
-): Piece | null {
+function pieceFromHit(hit: Intersection, pieces: Piece[]): Piece | null {
   let obj: Object3D | null = hit.object;
 
   while (obj) {
-    if (
-      obj.userData.isCubie === true &&
-      typeof obj.userData.cubieId === "number"
-    ) {
+    if (obj.userData.isCubie === true && typeof obj.userData.cubieId === "number") {
       return pieces[obj.userData.cubieId as number] ?? null;
     }
-
     obj = obj.parent;
   }
 
@@ -1489,23 +1325,9 @@ function quatFromOri(
   y: Vector3,
   z: Vector3
 ) {
-  x.set(
-    ori[0][0],
-    ori[0][1],
-    ori[0][2]
-  );
-
-  y.set(
-    ori[1][0],
-    ori[1][1],
-    ori[1][2]
-  );
-
-  z.set(
-    ori[2][0],
-    ori[2][1],
-    ori[2][2]
-  );
+  x.set(ori[0][0], ori[0][1], ori[0][2]);
+  y.set(ori[1][0], ori[1][1], ori[1][2]);
+  z.set(ori[2][0], ori[2][1], ori[2][2]);
 
   basisM.makeBasis(x, y, z);
   q.setFromRotationMatrix(basisM);
@@ -1517,20 +1339,12 @@ function easeOutCubic(t: number) {
   return 1 - (1 - t) ** 3;
 }
 
-function clamp(
-  v: number,
-  min: number,
-  max: number
-) {
+function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
-function snapQuarters(
-  angle: number,
-  vel: number
-): number {
+function snapQuarters(angle: number, vel: number): number {
   const q = Math.PI / 2;
-
   let guess = angle;
 
   if (Math.abs(vel) > 2.4) {
@@ -1538,13 +1352,9 @@ function snapQuarters(
   }
 
   let steps = Math.round(guess / q);
-
   steps = clamp(steps, -2, 2);
 
-  if (
-    Math.abs(angle) < 0.2 &&
-    Math.abs(vel) < 2.4
-  ) {
+  if (Math.abs(angle) < 0.2 && Math.abs(vel) < 2.4) {
     steps = 0;
   }
 
@@ -1558,86 +1368,41 @@ function orientSticker(
   sign: number,
   home: Vec3
 ) {
-  // Normal de la cara: dirección hacia afuera.
-
   const normal = new Vector3();
 
-  if (axis === 0) {
-    normal.set(sign, 0, 0);
-  } else if (axis === 1) {
-    normal.set(0, sign, 0);
-  } else {
-    normal.set(0, 0, sign);
-  }
-
-  // Los centros no necesitan orientar ninguna curva.
+  if (axis === 0) normal.set(sign, 0, 0);
+  else if (axis === 1) normal.set(0, sign, 0);
+  else normal.set(0, 0, sign);
 
   if (type === "center") {
-    mesh.quaternion.setFromUnitVectors(
-      new Vector3(0, 0, 1),
-      normal
-    );
-
+    mesh.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), normal);
     return;
   }
-
-  // Conservamos la orientación anterior de las esquinas.
 
   if (type === "corner") {
     if (axis === 0) {
-      mesh.rotation.y =
-        sign > 0 ? Math.PI / 2 : -Math.PI / 2;
-
-      mesh.rotation.z =
-        sign > 0 ? Math.PI : 0;
+      mesh.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+      mesh.rotation.z = sign > 0 ? Math.PI : 0;
     } else if (axis === 1) {
-      mesh.rotation.x =
-        sign > 0 ? -Math.PI / 2 : Math.PI / 2;
-
-      mesh.rotation.z =
-        sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+      mesh.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+      mesh.rotation.z = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
     } else {
-      if (sign < 0) {
-        mesh.rotation.y = Math.PI;
-      }
-
-      mesh.rotation.z =
-        sign > 0 ? 0 : Math.PI;
+      if (sign < 0) mesh.rotation.y = Math.PI;
+      mesh.rotation.z = sign > 0 ? 0 : Math.PI;
     }
-
     return;
   }
-
-  // Para las aristas, calculamos hacia dónde está el centro
-  // de la cara desde la posición de la pieza.
 
   const inward = new Vector3(
     axis === 0 ? 0 : -home[0],
     axis === 1 ? 0 : -home[1],
     axis === 2 ? 0 : -home[2]
   );
-
   inward.normalize();
 
-  // Construimos una orientación tridimensional:
-  // Z = normal de la cara.
-  // Y = dirección hacia el centro de la cara.
-  // X = eje perpendicular necesario para mantener la orientación.
-
-  const right = new Vector3()
-    .crossVectors(inward, normal)
-    .normalize();
-
-  const correctedUp = new Vector3()
-    .crossVectors(normal, right)
-    .normalize();
-
-  const basis = new Matrix4().makeBasis(
-    right,
-    correctedUp,
-    normal
-  );
-
+  const right = new Vector3().crossVectors(inward, normal).normalize();
+  const correctedUp = new Vector3().crossVectors(normal, right).normalize();
+  const basis = new Matrix4().makeBasis(right, correctedUp, normal);
   mesh.quaternion.setFromRotationMatrix(basis);
 }
 
