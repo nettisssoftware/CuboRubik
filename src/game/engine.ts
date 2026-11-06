@@ -1071,7 +1071,7 @@ export class CubeEngine {
 
   // 2. GEOMETRÍA DE LOS STICKERS (PLANOS, SIN GROSOR)
   // Usamos PlaneGeometry en lugar de BoxGeometry
-  const stickerSize = 0.86; 
+  const stickerSize = 0.94; 
   const stickerGeo = new PlaneGeometry(stickerSize, stickerSize);
   this.geos.push(stickerGeo);
 
