@@ -1054,87 +1054,35 @@ export class CubeEngine {
     return null;
   }
 
-  // --- NUEVA FUNCIÓN AUXILIAR PARA CREAR LAS GEOMETRÍAS ---
-private createStickerGeometry(type: "center" | "edge" | "corner"): ExtrudeGeometry {
-  // S = 1. Es el tamaño base. Lo escalaremos luego.
-  const s = 1.0; 
-  const r = 0.22; // Radio de redondeo. Ajusta este valor para que sea más o menos curvo.
-  
-  const shape = new Shape();
-  
-  // Dibujamos un cuadrado con esquinas redondeadas
-  shape.moveTo(-s + r, -s);
-  shape.lineTo(s - r, -s);
-  shape.quadraticCurveTo(s, -s, s, -s + r);
-  shape.lineTo(s, s - r);
-  shape.quadraticCurveTo(s, s, s - r, s);
-  shape.lineTo(-s + r, s);
-  shape.quadraticCurveTo(-s, s, -s, s - r);
-  shape.lineTo(-s, -s + r);
-  shape.quadraticCurveTo(-s, -s, -s + r, -s);
-  shape.closePath();
-
-  // Extruimos con un bisel (bevel) para el efecto GAN
-  const geo = new ExtrudeGeometry(shape, {
-    depth: 0.02,          // Grosor de la placa de color
-    bevelEnabled: true,   // Relieve
-    bevelThickness: 0.015,
-    bevelSize: 0.015,
-    bevelSegments: 3,
-    curveSegments: 8,     // Suavidad de las curvas
-  });
-
-  // Centramos la geometría en el eje Z
-  geo.translate(0, 0, -0.01);
-
-  // Escalamos y posicionamos según el tipo
-  if (type === "center") {
-    // El centro es un cuadrado más pequeño
-    geo.scale(0.6, 0.6, 1);
-  } else if (type === "edge") {
-    // La arista ocupa la mitad de la cara
-    geo.scale(0.6, 0.95, 1);
-    // Lo movemos para que quede pegado al borde superior
-    geo.translate(0, 0.35, 0);
-  } else if (type === "corner") {
-    // La esquina ocupa un cuarto de la cara
-    geo.scale(0.6, 0.6, 1);
-    // Lo movemos a la esquina superior derecha
-    geo.translate(0.35, 0.35, 0);
-  }
-
-  return geo;
-}
-
-private buildPieces(): Piece[] {
+  private buildPieces(): Piece[] {
   // 1. CUERPO NEGRO DE LAS PIEZAS
-  // Un poco más pequeño que el cubo total para dejar ver los cortes negros
+  // Tamaño del cubito. SPACING es 0.97, así que dejamos un pequeño gap entre cubos.
   const bodySize = 0.94; 
   const bodyGeo = new BoxGeometry(bodySize, bodySize, bodySize);
   this.geos.push(bodyGeo);
 
   const bodyMat = new MeshPhysicalMaterial({
-    color: 0x0a0a0a, // Negro profundo
-    roughness: 0.8,  // Plástico mate
+    color: 0x111111, // Negro clásico
+    roughness: 0.7,  // Plástico mate
     metalness: 0.0,
   });
   this.mats.push(bodyMat);
 
-  // 2. GEOMETRÍAS DE LOS STICKERS
-  const geoCenter = this.createStickerGeometry("center");
-  const geoEdge = this.createStickerGeometry("edge");
-  const geoCorner = this.createStickerGeometry("corner");
-  this.geos.push(geoCenter, geoEdge, geoCorner);
+  // 2. GEOMETRÍA DE LOS STICKERS (PLANOS, SIN GROSOR)
+  // Usamos PlaneGeometry en lugar de BoxGeometry
+  const stickerSize = 0.86; 
+  const stickerGeo = new PlaneGeometry(stickerSize, stickerSize);
+  this.geos.push(stickerGeo);
 
-  // 3. MATERIALES
+  // 3. MATERIALES DE LOS COLORES
   const stickerMats = new Map<string, MeshPhysicalMaterial>();
   for (const [id, hex] of Object.entries(FACE_HEX)) {
     const mat = new MeshPhysicalMaterial({
       color: hex,
       metalness: 0.0,
-      roughness: 0.25,    // Un poco más brillante que el cuerpo negro
-      clearcoat: 0.8,     // Capa de brillo (como el plástico del GAN)
-      clearcoatRoughness: 0.1,
+      roughness: 0.3,     // Un poco más de rugosidad para que no parezca un espejo
+      clearcoat: 0.6,     // Un brillo sutil
+      clearcoatRoughness: 0.2,
     });
     stickerMats.set(id, mat);
     this.mats.push(mat);
@@ -1155,10 +1103,8 @@ private buildPieces(): Piece[] {
     const body = new Mesh(bodyGeo, bodyMat);
     mesh.add(body);
 
-    // Añadir stickers
-    const baseGeo = pieceType === "center" ? geoCenter : pieceType === "edge" ? geoEdge : geoCorner;
-    
-    // Posición del sticker (en la superficie del cuerpo negro)
+    // Posición del sticker: EXACTAMENTE en la superficie del cuerpo negro.
+    // Sumamos 0.001 para evitar el "Z-Fighting" (que parpadee el color con el negro).
     const posOffset = (bodySize / 2) + 0.001; 
 
     for (const axis of [0, 1, 2] as const) {
@@ -1168,14 +1114,13 @@ private buildPieces(): Piece[] {
       const color = faceColor(axis, sign);
       const stickerMat = stickerMats.get(color)!;
 
-      // Clonamos la geometría para no afectar a las otras piezas
-      const sticker = new Mesh(baseGeo.clone(), stickerMat);
+      const sticker = new Mesh(stickerGeo, stickerMat);
       sticker.userData.stickerColor = color;
 
-      // Orientar el sticker (la nueva función matemática)
+      // Orientar el sticker hacia la cara correcta
       orientSticker(sticker, pieceType, axis, sign, data.home);
 
-      // Posicionar en la cara correcta
+      // Posicionar el sticker en la cara del cuerpo negro
       if (axis === 0) sticker.position.set(sign * posOffset, 0, 0);
       if (axis === 1) sticker.position.set(0, sign * posOffset, 0);
       if (axis === 2) sticker.position.set(0, 0, sign * posOffset);
@@ -1187,7 +1132,9 @@ private buildPieces(): Piece[] {
     return { ...data, mesh };
   });
 }
+
   
+
   private buildLights(scene: Scene) {
     const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
     const amb = new AmbientLight("#ffffff", 0.38);
@@ -1334,42 +1281,21 @@ function orientSticker(
   type: "center" | "edge" | "corner",
   axis: Axis,
   sign: number,
-  home: Vec3
+  home: Vec3 // No lo usamos ahora, pero lo dejamos por compatibilidad
 ) {
-  const normal = new Vector3();
-
-  if (axis === 0) normal.set(sign, 0, 0);
-  else if (axis === 1) normal.set(0, sign, 0);
-  else normal.set(0, 0, sign);
-
-  // 1. Alinear el eje Z del sticker con la normal de la cara
-  const qNormal = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), normal);
-
-  // 2. Calcular la rotación en el plano (eje Z)
-  // Para que la pieza mire hacia el centro del cubo, usamos la posición 'home'
-  // como referencia.
-  let angleZ = 0;
-
-  if (type !== "center") {
-    // Vector que apunta desde la pieza hacia el centro (0,0,0)
-    const toCenter = new Vector3(-home[0], -home[1], -home[2]).normalize();
-    
-    // Proyectamos ese vector en el plano de la cara
-    // Para ello, necesitamos un sistema de coordenadas local en la cara
-    const localX = new Vector3(1, 0, 0).applyQuaternion(qNormal);
-    const localY = new Vector3(0, 1, 0).applyQuaternion(qNormal);
-
-    // Ángulo hacia el centro en el plano local
-    const angleX = toCenter.dot(localX);
-    const angleY = toCenter.dot(localY);
-    
-    // Math.atan2 nos da el ángulo en radianes (0 es el eje X positivo)
-    angleZ = Math.atan2(angleY, angleX);
+  // Para una caja, solo necesitamos rotarla para que su cara plana (eje Z)
+  // mire hacia afuera en la dirección correcta (axis + sign).
+  
+  if (axis === 0) {
+    // Eje X
+    mesh.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+  } else if (axis === 1) {
+    // Eje Y
+    mesh.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+  } else {
+    // Eje Z
+    mesh.rotation.y = sign > 0 ? 0 : Math.PI;
   }
-
-  // 3. Aplicar la rotación final
-  const qZ = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), angleZ);
-  mesh.quaternion.copy(qNormal).multiply(qZ);
 }
 
 declare global {
