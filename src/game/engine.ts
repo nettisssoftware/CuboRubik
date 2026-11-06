@@ -1054,179 +1054,140 @@ export class CubeEngine {
     return null;
   }
 
-  private buildPieces(): Piece[] {
-    // 1. CUERPO NEGRO DE LAS PIEZAS
-    // Más pequeño que los stickers para que no sobresalga.
-    const bodyGeo = new BoxGeometry(BODY_SIZE, BODY_SIZE, BODY_SIZE);
-    this.geos.push(bodyGeo);
+  // --- NUEVA FUNCIÓN AUXILIAR PARA CREAR LAS GEOMETRÍAS ---
+private createStickerGeometry(type: "center" | "edge" | "corner"): ExtrudeGeometry {
+  // S = 1. Es el tamaño base. Lo escalaremos luego.
+  const s = 1.0; 
+  const r = 0.22; // Radio de redondeo. Ajusta este valor para que sea más o menos curvo.
+  
+  const shape = new Shape();
+  
+  // Dibujamos un cuadrado con esquinas redondeadas
+  shape.moveTo(-s + r, -s);
+  shape.lineTo(s - r, -s);
+  shape.quadraticCurveTo(s, -s, s, -s + r);
+  shape.lineTo(s, s - r);
+  shape.quadraticCurveTo(s, s, s - r, s);
+  shape.lineTo(-s + r, s);
+  shape.quadraticCurveTo(-s, s, -s, s - r);
+  shape.lineTo(-s, -s + r);
+  shape.quadraticCurveTo(-s, -s, -s + r, -s);
+  shape.closePath();
 
-    const bodyMat = new MeshPhysicalMaterial({
-      color: 0x050505,
-      roughness: 0.9,
-      metalness: 0.0,
-    });
+  // Extruimos con un bisel (bevel) para el efecto GAN
+  const geo = new ExtrudeGeometry(shape, {
+    depth: 0.02,          // Grosor de la placa de color
+    bevelEnabled: true,   // Relieve
+    bevelThickness: 0.015,
+    bevelSize: 0.015,
+    bevelSegments: 3,
+    curveSegments: 8,     // Suavidad de las curvas
+  });
 
-    this.mats.push(bodyMat);
+  // Centramos la geometría en el eje Z
+  geo.translate(0, 0, -0.01);
 
-    // 2. GEOMETRÍAS DE LOS STICKERS (Basadas en tu ilustración)
-    
-    // Sticker size es 0.98 para cubrir casi todo el espacio (SPACING=0.97)
-    // Esto crea el efecto de "margen mínimo".
-    const s = 0.98 / 2; 
-    const posOffset = (BODY_SIZE / 2) + 0.001; // Justo en la superficie del cuerpo negro
-
-    // --- A. CENTRO: Cuadrado con esquinas redondeadas ---
-    const shapeCenter = new Shape();
-    const centerR = 0.22; // Radio de redondeo pronunciado
-    
-    shapeCenter.moveTo(-s + centerR, -s);
-    shapeCenter.lineTo(s - centerR, -s);
-    shapeCenter.quadraticCurveTo(s, -s, s, -s + centerR);
-    shapeCenter.lineTo(s, s - centerR);
-    shapeCenter.quadraticCurveTo(s, s, s - centerR, s);
-    shapeCenter.lineTo(-s + centerR, s);
-    shapeCenter.quadraticCurveTo(-s, s, -s, s - centerR);
-    shapeCenter.lineTo(-s, -s + centerR);
-    shapeCenter.quadraticCurveTo(-s, -s, -s + centerR, -s);
-    shapeCenter.closePath();
-
-    const geoCenter = new ExtrudeGeometry(shapeCenter, {
-      depth: 0.04,
-      bevelEnabled: false,
-    });
-    geoCenter.translate(0, 0, -0.04);
-
-    // --- B. ARISTAS: Un lado recto, el interior curvado ---
-    // La curva interior apunta hacia el centro del cubo.
-    const shapeEdge = new Shape();
-    const edgeR = 0.08; // Radio del redondeo exterior
-    const innerCurve = 0.4; // Profundidad de la curva interior
-
-    // Lado exterior recto
-    shapeEdge.moveTo(-s + edgeR, -s);
-    shapeEdge.lineTo(s - edgeR, -s);
-    shapeEdge.quadraticCurveTo(s, -s, s, -s + edgeR);
-    shapeEdge.lineTo(s, s); // Lado recto largo
-    shapeEdge.lineTo(-s, s);
-    shapeEdge.lineTo(-s, -s + edgeR);
-    shapeEdge.quadraticCurveTo(-s, -s, -s + edgeR, -s);
-    
-    // Curva interior (hacia el centro)
-    // Usamos una curva bezier para simular el arco profundo
-    shapeEdge.moveTo(-s, s); 
-    shapeEdge.quadraticCurveTo(0, s - innerCurve, s, s);
-    shapeEdge.closePath();
-
-    const geoEdge = new ExtrudeGeometry(shapeEdge, {
-      depth: 0.04,
-      bevelEnabled: false,
-    });
-    geoEdge.translate(0, 0, -0.04);
-
-    // --- C. ESQUINAS: Lados exteriores rectos, interior redondeado ---
-    const shapeCorner = new Shape();
-    const cornerR = 0.05; // Muy poco redondeo en el exterior
-    const innerCornerR = 0.25; // Redondeo interior suave
-
-    shapeCorner.moveTo(-s + cornerR, -s);
-    shapeCorner.lineTo(s - cornerR, -s);
-    shapeCorner.quadraticCurveTo(s, -s, s, -s + cornerR);
-    shapeCorner.lineTo(s, s - cornerR);
-    shapeCorner.quadraticCurveTo(s, s, s - cornerR, s);
-    shapeCorner.lineTo(-s + cornerR, s);
-    shapeCorner.quadraticCurveTo(-s, s, -s, s - cornerR);
-    shapeCorner.lineTo(-s, -s + cornerR);
-    shapeCorner.quadraticCurveTo(-s, -s, -s + cornerR, -s);
-    shapeCorner.closePath();
-
-    // Hueco interior para la esquina
-    const hole = new Shape();
-    hole.moveTo(-s + innerCornerR, -s + innerCornerR);
-    hole.lineTo(s - innerCornerR, -s + innerCornerR);
-    hole.lineTo(s - innerCornerR, s - innerCornerR);
-    hole.lineTo(-s + innerCornerR, s - innerCornerR);
-    hole.closePath();
-    shapeCorner.holes.push(hole);
-
-    const geoCorner = new ExtrudeGeometry(shapeCorner, {
-      depth: 0.04,
-      bevelEnabled: false,
-    });
-    geoCorner.translate(0, 0, -0.04);
-
-    this.geos.push(geoCenter, geoEdge, geoCorner);
-
-    // 3. MATERIALES
-    const stickerMats = new Map<string, MeshPhysicalMaterial>();
-
-    for (const [id, hex] of Object.entries(FACE_HEX)) {
-      const mat = new MeshPhysicalMaterial({
-        color: hex,
-        metalness: 0.0,
-        roughness: 0.15,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.05,
-      });
-
-      stickerMats.set(id, mat);
-      this.mats.push(mat);
-    }
-
-    // 4. CONSTRUCCIÓN DE LAS PIEZAS
-    return createSolved().map((data, id) => {
-      const mesh = new Group();
-
-      mesh.userData.isCubie = true;
-      mesh.userData.cubieId = id;
-
-      const activeFaces = data.home.filter((v) => v !== 0).length;
-      let pieceType: "center" | "edge" | "corner" = "center";
-
-      if (activeFaces === 2) pieceType = "edge";
-      if (activeFaces === 3) pieceType = "corner";
-
-      const baseGeo =
-        pieceType === "center"
-          ? geoCenter
-          : pieceType === "edge"
-            ? geoEdge
-            : geoCorner;
-
-      const body = new Mesh(bodyGeo, bodyMat);
-      mesh.add(body);
-
-      for (const axis of [0, 1, 2] as const) {
-        const sign = data.home[axis];
-        if (sign === 0) continue;
-
-        const color = faceColor(axis, sign);
-        const stickerMat = stickerMats.get(color)!;
-
-        const sticker = new Mesh(baseGeo.clone(), stickerMat);
-        sticker.userData.stickerColor = color;
-
-        orientSticker(
-          sticker,
-          pieceType,
-          axis,
-          sign,
-          data.home
-        );
-
-        // Posicionar el sticker justo en la superficie del cuerpo negro
-        if (axis === 0) sticker.position.set(sign * posOffset, 0, 0);
-        if (axis === 1) sticker.position.set(0, sign * posOffset, 0);
-        if (axis === 2) sticker.position.set(0, 0, sign * posOffset);
-
-        mesh.add(sticker);
-      }
-
-      this.cubeRoot.add(mesh);
-
-      return { ...data, mesh };
-    });
+  // Escalamos y posicionamos según el tipo
+  if (type === "center") {
+    // El centro es un cuadrado más pequeño
+    geo.scale(0.6, 0.6, 1);
+  } else if (type === "edge") {
+    // La arista ocupa la mitad de la cara
+    geo.scale(0.6, 0.95, 1);
+    // Lo movemos para que quede pegado al borde superior
+    geo.translate(0, 0.35, 0);
+  } else if (type === "corner") {
+    // La esquina ocupa un cuarto de la cara
+    geo.scale(0.6, 0.6, 1);
+    // Lo movemos a la esquina superior derecha
+    geo.translate(0.35, 0.35, 0);
   }
 
+  return geo;
+}
+
+private buildPieces(): Piece[] {
+  // 1. CUERPO NEGRO DE LAS PIEZAS
+  // Un poco más pequeño que el cubo total para dejar ver los cortes negros
+  const bodySize = 0.94; 
+  const bodyGeo = new BoxGeometry(bodySize, bodySize, bodySize);
+  this.geos.push(bodyGeo);
+
+  const bodyMat = new MeshPhysicalMaterial({
+    color: 0x0a0a0a, // Negro profundo
+    roughness: 0.8,  // Plástico mate
+    metalness: 0.0,
+  });
+  this.mats.push(bodyMat);
+
+  // 2. GEOMETRÍAS DE LOS STICKERS
+  const geoCenter = this.createStickerGeometry("center");
+  const geoEdge = this.createStickerGeometry("edge");
+  const geoCorner = this.createStickerGeometry("corner");
+  this.geos.push(geoCenter, geoEdge, geoCorner);
+
+  // 3. MATERIALES
+  const stickerMats = new Map<string, MeshPhysicalMaterial>();
+  for (const [id, hex] of Object.entries(FACE_HEX)) {
+    const mat = new MeshPhysicalMaterial({
+      color: hex,
+      metalness: 0.0,
+      roughness: 0.25,    // Un poco más brillante que el cuerpo negro
+      clearcoat: 0.8,     // Capa de brillo (como el plástico del GAN)
+      clearcoatRoughness: 0.1,
+    });
+    stickerMats.set(id, mat);
+    this.mats.push(mat);
+  }
+
+  // 4. CONSTRUCCIÓN DE LAS PIEZAS
+  return createSolved().map((data, id) => {
+    const mesh = new Group();
+    mesh.userData.isCubie = true;
+    mesh.userData.cubieId = id;
+
+    const activeFaces = data.home.filter((v) => v !== 0).length;
+    let pieceType: "center" | "edge" | "corner" = "center";
+    if (activeFaces === 2) pieceType = "edge";
+    if (activeFaces === 3) pieceType = "corner";
+
+    // Añadir cuerpo negro
+    const body = new Mesh(bodyGeo, bodyMat);
+    mesh.add(body);
+
+    // Añadir stickers
+    const baseGeo = pieceType === "center" ? geoCenter : pieceType === "edge" ? geoEdge : geoCorner;
+    
+    // Posición del sticker (en la superficie del cuerpo negro)
+    const posOffset = (bodySize / 2) + 0.001; 
+
+    for (const axis of [0, 1, 2] as const) {
+      const sign = data.home[axis];
+      if (sign === 0) continue;
+
+      const color = faceColor(axis, sign);
+      const stickerMat = stickerMats.get(color)!;
+
+      // Clonamos la geometría para no afectar a las otras piezas
+      const sticker = new Mesh(baseGeo.clone(), stickerMat);
+      sticker.userData.stickerColor = color;
+
+      // Orientar el sticker (la nueva función matemática)
+      orientSticker(sticker, pieceType, axis, sign, data.home);
+
+      // Posicionar en la cara correcta
+      if (axis === 0) sticker.position.set(sign * posOffset, 0, 0);
+      if (axis === 1) sticker.position.set(0, sign * posOffset, 0);
+      if (axis === 2) sticker.position.set(0, 0, sign * posOffset);
+
+      mesh.add(sticker);
+    }
+
+    this.cubeRoot.add(mesh);
+    return { ...data, mesh };
+  });
+}
+  
   private buildLights(scene: Scene) {
     const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
     const amb = new AmbientLight("#ffffff", 0.38);
@@ -1280,17 +1241,24 @@ export class CubeEngine {
     const colors = palettes[theme];
 
     for (const piece of this.pieces) {
-      piece.mesh.children.forEach((child) => {
-        if (child instanceof Mesh && child.material instanceof MeshPhysicalMaterial) {
-          const colorId = child.userData.stickerColor;
-          if (colorId && colors[colorId as keyof typeof colors]) {
-            const newHex = colors[colorId as keyof typeof colors];
-            child.material.color.set(newHex);
-            child.material.emissive.set(newHex);
-          }
+  piece.mesh.children.forEach((child) => {
+    if (child instanceof Mesh && child.material instanceof MeshPhysicalMaterial) {
+      const colorId = child.userData.stickerColor;
+      if (colorId && colors[colorId as keyof typeof colors]) {
+        const newHex = colors[colorId as keyof typeof colors];
+        child.material.color.set(newHex);
+        
+        // Solo aplicar emisión si no es el tema clásico (para evitar brillos raros)
+        if (theme !== "classic") {
+           child.material.emissive.set(newHex);
+           child.material.emissiveIntensity = 0.2; 
+        } else {
+           child.material.emissive.set(0x000000);
         }
-      });
+      }
     }
+  });
+}
   }
 }
 
@@ -1374,36 +1342,34 @@ function orientSticker(
   else if (axis === 1) normal.set(0, sign, 0);
   else normal.set(0, 0, sign);
 
-  if (type === "center") {
-    mesh.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), normal);
-    return;
+  // 1. Alinear el eje Z del sticker con la normal de la cara
+  const qNormal = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), normal);
+
+  // 2. Calcular la rotación en el plano (eje Z)
+  // Para que la pieza mire hacia el centro del cubo, usamos la posición 'home'
+  // como referencia.
+  let angleZ = 0;
+
+  if (type !== "center") {
+    // Vector que apunta desde la pieza hacia el centro (0,0,0)
+    const toCenter = new Vector3(-home[0], -home[1], -home[2]).normalize();
+    
+    // Proyectamos ese vector en el plano de la cara
+    // Para ello, necesitamos un sistema de coordenadas local en la cara
+    const localX = new Vector3(1, 0, 0).applyQuaternion(qNormal);
+    const localY = new Vector3(0, 1, 0).applyQuaternion(qNormal);
+
+    // Ángulo hacia el centro en el plano local
+    const angleX = toCenter.dot(localX);
+    const angleY = toCenter.dot(localY);
+    
+    // Math.atan2 nos da el ángulo en radianes (0 es el eje X positivo)
+    angleZ = Math.atan2(angleY, angleX);
   }
 
-  if (type === "corner") {
-    if (axis === 0) {
-      mesh.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
-      mesh.rotation.z = sign > 0 ? Math.PI : 0;
-    } else if (axis === 1) {
-      mesh.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
-      mesh.rotation.z = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
-    } else {
-      if (sign < 0) mesh.rotation.y = Math.PI;
-      mesh.rotation.z = sign > 0 ? 0 : Math.PI;
-    }
-    return;
-  }
-
-  const inward = new Vector3(
-    axis === 0 ? 0 : -home[0],
-    axis === 1 ? 0 : -home[1],
-    axis === 2 ? 0 : -home[2]
-  );
-  inward.normalize();
-
-  const right = new Vector3().crossVectors(inward, normal).normalize();
-  const correctedUp = new Vector3().crossVectors(normal, right).normalize();
-  const basis = new Matrix4().makeBasis(right, correctedUp, normal);
-  mesh.quaternion.setFromRotationMatrix(basis);
+  // 3. Aplicar la rotación final
+  const qZ = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), angleZ);
+  mesh.quaternion.copy(qNormal).multiply(qZ);
 }
 
 declare global {
