@@ -17,6 +17,7 @@ import {
   Vector2,
   Vector3,
   BoxGeometry,
+  PlaneGeometry,
   type Intersection,
 } from "three";
 import {
