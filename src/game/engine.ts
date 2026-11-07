@@ -12,12 +12,8 @@ import {
   Quaternion,
   Raycaster,
   Scene,
-  Shape,
-  ExtrudeGeometry,
   Vector2,
   Vector3,
-  BoxGeometry,
-  PlaneGeometry,
   type Intersection,
 } from "three";
 import {
@@ -34,6 +30,7 @@ import {
   type Move,
   type Vec3,
 } from "./cube-math";
+import { createGanGeometries, GAN_LIFT, ganRoll } from "./gan-skin";
 import { FACE_HEX } from "./palette";
 
 export type Phase = "ready" | "scrambling" | "playing" | "won";
@@ -68,15 +65,11 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 0.97;
+const SPACING = 1.02;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
-const BODY_SIZE = 0.90; 
-const AXIS_VEC = [
-  new Vector3(1, 0, 0),
-  new Vector3(0, 1, 0),
-  new Vector3(0, 0, 1),
-];
+const BODY_SIZE = 0.9;
+const AXIS_VEC = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)];
 
 const TURN_MS = 0.16;
 const SCRAMBLE_MS = 0.092;
@@ -88,9 +81,11 @@ class Sfx {
     try {
       const AC =
         window.AudioContext ||
-        (window as unknown as {
-          webkitAudioContext?: typeof AudioContext;
-        }).webkitAudioContext;
+        (
+          window as unknown as {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
 
       if (!AC) return;
       if (!this.ctx) this.ctx = new AC();
@@ -100,13 +95,7 @@ class Sfx {
     }
   }
 
-  private tone(
-    freq: number,
-    dur: number,
-    type: OscillatorType,
-    gain: number,
-    delay = 0
-  ) {
+  private tone(freq: number, dur: number, type: OscillatorType, gain: number, delay = 0) {
     if (!this.ctx) return;
 
     const t = this.ctx.currentTime + delay;
@@ -133,9 +122,7 @@ class Sfx {
 
   win() {
     this.unlock();
-    [523, 659, 784, 1046].forEach((n, i) =>
-      this.tone(n, 0.2, "triangle", 0.045, i * 0.08)
-    );
+    [523, 659, 784, 1046].forEach((n, i) => this.tone(n, 0.2, "triangle", 0.045, i * 0.08));
   }
 }
 
@@ -192,10 +179,7 @@ export class CubeEngine {
   private lookY = 0;
   private time = 0;
 
-  private pointers = new Map<
-    number,
-    { x: number; y: number; travel: number }
-  >();
+  private pointers = new Map<number, { x: number; y: number; travel: number }>();
 
   private mode: "none" | "pending" | "slice" | "orbit" | "pinch" = "none";
 
@@ -230,19 +214,12 @@ export class CubeEngine {
 
   private reduced: boolean;
 
-  constructor(opts: {
-    scene: Scene;
-    camera: PerspectiveCamera;
-    dom: HTMLElement;
-    hooks: Hooks;
-  }) {
+  constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
     this.camera = opts.camera;
     this.dom = opts.dom;
     this.hooks = opts.hooks;
 
-    this.reduced =
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
-      false;
+    this.reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
     this.pieces = this.buildPieces();
 
@@ -281,13 +258,9 @@ export class CubeEngine {
     this.updateCamera(d);
     this.updateMotion(d);
 
-    const bob =
-      this.phase === "ready" && !this.reduced
-        ? Math.sin(this.time * 1.15) * 0.07
-        : 0;
+    const bob = this.phase === "ready" && !this.reduced ? Math.sin(this.time * 1.15) * 0.07 : 0;
 
-    this.cubeRoot.position.y +=
-      (bob - this.cubeRoot.position.y) * (1 - Math.exp(-4 * d));
+    this.cubeRoot.position.y += (bob - this.cubeRoot.position.y) * (1 - Math.exp(-4 * d));
   }
 
   start() {
@@ -411,10 +384,7 @@ export class CubeEngine {
     if (!p) return;
 
     if (this.pointers.size === 0) {
-      const tap =
-        this.downButton === 0 &&
-        p.travel < 10 &&
-        performance.now() - this.downAt < 450;
+      const tap = this.downButton === 0 && p.travel < 10 && performance.now() - this.downAt < 450;
 
       if (tap && this.mode !== "slice" && this.mode !== "pinch") {
         this.hooks.onTap();
@@ -510,7 +480,7 @@ export class CubeEngine {
     layer: Layer,
     quarters: number,
     user: boolean,
-    sound: boolean
+    sound: boolean,
   ) {
     const q = ((quarters % 4) + 4) % 4;
     if (q === 0) return;
@@ -582,12 +552,7 @@ export class CubeEngine {
 
   private commitAnim(anim: Anim) {
     if (anim.quarters !== 0) {
-      applyQuarters(
-        this.pieces,
-        anim.axis,
-        anim.layer,
-        anim.quarters
-      );
+      applyQuarters(this.pieces, anim.axis, anim.layer, anim.quarters);
 
       this.history.push({
         axis: anim.axis,
@@ -626,12 +591,7 @@ export class CubeEngine {
       return;
     }
 
-    if (
-      this.phase === "playing" &&
-      anim.user &&
-      anim.quarters !== 0 &&
-      isSolved(this.pieces)
-    ) {
+    if (this.phase === "playing" && anim.user && anim.quarters !== 0 && isSolved(this.pieces)) {
       this.declareWin();
     }
   }
@@ -670,17 +630,11 @@ export class CubeEngine {
     const pxPerWorld = this.screen.length() / 0.25;
     if (pxPerWorld < 0.4) return;
 
-    const pixels =
-      (dx * this.screen.x + dy * this.screen.y) /
-      this.screen.length();
+    const pixels = (dx * this.screen.x + dy * this.screen.y) / this.screen.length();
 
     const dAngle = pixels / pxPerWorld / radius;
 
-    slice.angle = clamp(
-      slice.angle + dAngle,
-      -Math.PI * 1.2,
-      Math.PI * 1.2
-    );
+    slice.angle = clamp(slice.angle + dAngle, -Math.PI * 1.2, Math.PI * 1.2);
 
     const now = performance.now();
     const dt = (now - slice.lastT) / 1000;
@@ -714,9 +668,7 @@ export class CubeEngine {
       from: slice.angle,
       to: target,
       elapsed: 0,
-      dur: this.reduced
-        ? 0.04
-        : 0.13 + Math.min(0.08, Math.abs(target - slice.angle) * 0.05),
+      dur: this.reduced ? 0.04 : 0.13 + Math.min(0.08, Math.abs(target - slice.angle) * 0.05),
       quarters,
       bases: slice.bases,
       user: true,
@@ -752,7 +704,7 @@ export class CubeEngine {
   private chooseAxis(
     tdx: number,
     tdy: number,
-    dist: number
+    dist: number,
   ): { axis: Axis; layer: Layer } | "wait" | null {
     const piece = this.pendingPiece;
     if (!piece) return null;
@@ -776,8 +728,7 @@ export class CubeEngine {
       const sl = this.screen.length();
       if (sl < 0.5) continue;
 
-      const score =
-        (tdx * this.screen.x + tdy * this.screen.y) / sl;
+      const score = (tdx * this.screen.x + tdy * this.screen.y) / sl;
 
       const abs = Math.abs(score);
 
@@ -795,11 +746,7 @@ export class CubeEngine {
       return dist < 30 ? "wait" : null;
     }
 
-    if (
-      dist < 26 &&
-      second > 0 &&
-      Math.abs(best.score) < second * 1.25
-    ) {
+    if (dist < 26 && second > 0 && Math.abs(best.score) < second * 1.25) {
       return "wait";
     }
 
@@ -828,11 +775,7 @@ export class CubeEngine {
   }
 
   private rotatedGrab(axis: Axis, angle: number): Vector3 {
-    const r = rotateAround(
-      [this.grab.x, this.grab.y, this.grab.z],
-      axis,
-      angle
-    );
+    const r = rotateAround([this.grab.x, this.grab.y, this.grab.z], axis, angle);
 
     return this.tmpB.set(r[0], r[1], r[2]);
   }
@@ -840,18 +783,12 @@ export class CubeEngine {
   private worldDirToScreen(point: Vector3, dir: Vector3) {
     this.tmpA.copy(point).project(this.camera);
 
-    this.tmpN
-      .copy(point)
-      .addScaledVector(dir, 0.25)
-      .project(this.camera);
+    this.tmpN.copy(point).addScaledVector(dir, 0.25).project(this.camera);
 
     const w = this.dom.clientWidth || 1;
     const h = this.dom.clientHeight || 1;
 
-    this.screen.set(
-      (this.tmpN.x - this.tmpA.x) * 0.5 * w,
-      -(this.tmpN.y - this.tmpA.y) * 0.5 * h
-    );
+    this.screen.set((this.tmpN.x - this.tmpA.x) * 0.5 * w, -(this.tmpN.y - this.tmpA.y) * 0.5 * h);
   }
 
   private orbitBy(dx: number, dy: number) {
@@ -863,11 +800,7 @@ export class CubeEngine {
     const sens = this.sens;
 
     this.theta -= dx * sens;
-    this.phi = clamp(
-      this.phi - dy * sens,
-      0.18,
-      Math.PI - 0.18
-    );
+    this.phi = clamp(this.phi - dy * sens, 0.18, Math.PI - 0.18);
 
     this.vTheta = clamp((-dx * sens) / dt, -2.2, 2.2);
     this.vPhi = clamp((-dy * sens) / dt, -2.2, 2.2);
@@ -913,11 +846,7 @@ export class CubeEngine {
 
     this.theta = pinch.theta - (midX - pinch.midX) * this.sens;
 
-    this.phi = clamp(
-      pinch.phi - (midY - pinch.midY) * this.sens,
-      0.18,
-      Math.PI - 0.18
-    );
+    this.phi = clamp(pinch.phi - (midY - pinch.midY) * this.sens, 0.18, Math.PI - 0.18);
 
     this.orbiting = true;
   }
@@ -925,23 +854,14 @@ export class CubeEngine {
   private updateCamera(dt: number) {
     const now = performance.now();
 
-    if (
-      this.phase === "ready" &&
-      !this.orbiting &&
-      !this.reduced &&
-      now > this.autoResumeAt
-    ) {
+    if (this.phase === "ready" && !this.orbiting && !this.reduced && now > this.autoResumeAt) {
       this.theta += dt * 0.22;
     }
 
     if (!this.orbiting) {
       this.theta += this.vTheta * dt;
 
-      this.phi = clamp(
-        this.phi + this.vPhi * dt,
-        0.18,
-        Math.PI - 0.18
-      );
+      this.phi = clamp(this.phi + this.vPhi * dt, 0.18, Math.PI - 0.18);
 
       const damp = Math.exp(-3.4 * dt);
 
@@ -951,19 +871,16 @@ export class CubeEngine {
 
     const desiredLook = this.phase === "won" ? -1.15 : 0;
 
-    this.lookY +=
-      (desiredLook - this.lookY) * (1 - Math.exp(-4 * dt));
+    this.lookY += (desiredLook - this.lookY) * (1 - Math.exp(-4 * dt));
 
-    this.radius +=
-      (this.targetRadius - this.radius) *
-      (1 - Math.exp(-7 * dt));
+    this.radius += (this.targetRadius - this.radius) * (1 - Math.exp(-7 * dt));
 
     const sinPhi = Math.sin(this.phi);
 
     this.camera.position.set(
       this.radius * sinPhi * Math.sin(this.theta),
       this.radius * Math.cos(this.phi),
-      this.radius * sinPhi * Math.cos(this.theta)
+      this.radius * sinPhi * Math.cos(this.theta),
     );
 
     this.camera.lookAt(0, this.lookY, 0);
@@ -991,15 +908,9 @@ export class CubeEngine {
     for (const b of bases) {
       const p = rotateAround(b.pos, axis, angle);
 
-      b.piece.mesh.position.set(
-        p[0] * SPACING,
-        p[1] * SPACING,
-        p[2] * SPACING
-      );
+      b.piece.mesh.position.set(p[0] * SPACING, p[1] * SPACING, p[2] * SPACING);
 
-      b.piece.mesh.quaternion
-        .copy(this.tmpQ)
-        .multiply(b.quat);
+      b.piece.mesh.quaternion.copy(this.tmpQ).multiply(b.quat);
     }
   }
 
@@ -1008,38 +919,26 @@ export class CubeEngine {
       piece.mesh.position.set(
         piece.pos[0] * SPACING,
         piece.pos[1] * SPACING,
-        piece.pos[2] * SPACING
+        piece.pos[2] * SPACING,
       );
 
-      quatFromOri(
-        piece.ori,
-        piece.mesh.quaternion,
-        this.tmpA,
-        this.tmpB,
-        this.tmpC
-      );
+      quatFromOri(piece.ori, piece.mesh.quaternion, this.tmpA, this.tmpB, this.tmpC);
     }
   }
 
-  private pick(
-    clientX: number,
-    clientY: number
-  ): { piece: Piece; point: Vector3 } | null {
+  private pick(clientX: number, clientY: number): { piece: Piece; point: Vector3 } | null {
     const rect = this.dom.getBoundingClientRect();
 
     this.ndc.set(
       ((clientX - rect.left) / rect.width) * 2 - 1,
-      -((clientY - rect.top) / rect.height) * 2 + 1
+      -((clientY - rect.top) / rect.height) * 2 + 1,
     );
 
     this.raycaster.setFromCamera(this.ndc, this.camera);
 
     this.cubeRoot.updateMatrixWorld(true);
 
-    const hits = this.raycaster.intersectObjects(
-      this.cubeRoot.children,
-      true
-    );
+    const hits = this.raycaster.intersectObjects(this.cubeRoot.children, true);
 
     for (const hit of hits) {
       const piece = pieceFromHit(hit, this.pieces);
@@ -1056,94 +955,108 @@ export class CubeEngine {
   }
 
   private buildPieces(): Piece[] {
-  // 1. CUERPO NEGRO DE LAS PIEZAS
-  // Tamaño del cubito. SPACING es 0.97, así que dejamos un pequeño gap entre cubos.
-  const bodySize = 0.94; 
-  const bodyGeo = new BoxGeometry(bodySize, bodySize, bodySize);
-  this.geos.push(bodyGeo);
+    const gan = createGanGeometries();
+    this.geos.push(...gan.all);
 
-  const bodyMat = new MeshPhysicalMaterial({
-    color: 0x111111, // Negro clásico
-    roughness: 0.7,  // Plástico mate
-    metalness: 0.0,
-  });
-  this.mats.push(bodyMat);
-
-  // 2. GEOMETRÍA DE LOS STICKERS (PLANOS, SIN GROSOR)
-  // Usamos PlaneGeometry en lugar de BoxGeometry
-  const stickerSize = 0.94; 
-  const stickerGeo = new PlaneGeometry(stickerSize, stickerSize);
-  this.geos.push(stickerGeo);
-
-  // 3. MATERIALES DE LOS COLORES
-  const stickerMats = new Map<string, MeshPhysicalMaterial>();
-  for (const [id, hex] of Object.entries(FACE_HEX)) {
-    const mat = new MeshPhysicalMaterial({
-      color: hex,
+    // Material del cuerpo negro (el plástico base)
+    const plastic = new MeshPhysicalMaterial({
+      color: "#0a0a0a", // Negro profundo
+      roughness: 0.5,
       metalness: 0.0,
-      roughness: 0.3,     // Un poco más de rugosidad para que no parezca un espejo
-      clearcoat: 0.6,     // Un brillo sutil
-      clearcoatRoughness: 0.2,
+      clearcoat: 0.3,
     });
-    stickerMats.set(id, mat);
-    this.mats.push(mat);
-  }
+    this.mats.push(plastic);
 
-  // 4. CONSTRUCCIÓN DE LAS PIEZAS
-  return createSolved().map((data, id) => {
-    const mesh = new Group();
-    mesh.userData.isCubie = true;
-    mesh.userData.cubieId = id;
-
-    const activeFaces = data.home.filter((v) => v !== 0).length;
-    let pieceType: "center" | "edge" | "corner" = "center";
-    if (activeFaces === 2) pieceType = "edge";
-    if (activeFaces === 3) pieceType = "corner";
-
-    // Añadir cuerpo negro
-    const body = new Mesh(bodyGeo, bodyMat);
-    mesh.add(body);
-
-    // Posición del sticker: EXACTAMENTE en la superficie del cuerpo negro.
-    // Sumamos 0.001 para evitar el "Z-Fighting" (que parpadee el color con el negro).
-    const posOffset = (bodySize / 2) + 0.001; 
-
-    for (const axis of [0, 1, 2] as const) {
-      const sign = data.home[axis];
-      if (sign === 0) continue;
-
-      const color = faceColor(axis, sign);
-      const stickerMat = stickerMats.get(color)!;
-
-      const sticker = new Mesh(stickerGeo, stickerMat);
-      sticker.userData.stickerColor = color;
-
-      // Orientar el sticker hacia la cara correcta
-      orientSticker(sticker, pieceType, axis, sign, data.home);
-
-      // Posicionar el sticker en la cara del cuerpo negro
-      if (axis === 0) sticker.position.set(sign * posOffset, 0, 0);
-      if (axis === 1) sticker.position.set(0, sign * posOffset, 0);
-      if (axis === 2) sticker.position.set(0, 0, sign * posOffset);
-
-      mesh.add(sticker);
+    // Materiales de los colores
+    const stickerMats = new Map<string, MeshPhysicalMaterial>();
+    for (const [id, hex] of Object.entries(FACE_HEX)) {
+      const mat = new MeshPhysicalMaterial({
+        color: hex,
+        roughness: 0.2, // Brillante y suave
+        metalness: 0.0,
+        clearcoat: 0.8, // El toque GAN
+        clearcoatRoughness: 0.1,
+        emissive: 0x000000, // Por defecto apagado
+      });
+      stickerMats.set(id, mat);
+      this.mats.push(mat);
     }
 
-    this.cubeRoot.add(mesh);
-    return { ...data, mesh };
-  });
-}
+    return createSolved().map((data, id) => {
+      const mesh = new Group();
+      mesh.userData.isCubie = true;
+      mesh.userData.cubieId = id;
 
-  
+      // 1. Cuerpo Negro
+      const body = new Mesh(gan.core, plastic);
+      mesh.add(body);
+
+      // 2. Calcular tipo de pieza
+      const activeFaces = data.home.filter((v) => v !== 0).length;
+      let pieceType: "center" | "edge" | "corner" = "center";
+      if (activeFaces === 2) pieceType = "edge";
+      if (activeFaces === 3) pieceType = "corner";
+
+      // 3. Añadir las capas de color (plate, bevel, floor)
+      for (const axis of [0, 1, 2] as const) {
+        const sign = data.home[axis];
+        if (sign === 0) continue;
+
+        const color = faceColor(axis, sign);
+        const mat = stickerMats.get(color)!;
+
+        const face = new Group();
+
+        // Placa superior (el color puro)
+        const plate = new Mesh(gan.plate[pieceType], mat);
+        plate.userData.stickerColor = color;
+
+        // Bisel (pared intermedia del mismo color)
+        const bevel = new Mesh(gan.bevel[pieceType], mat);
+        bevel.userData.stickerColor = color;
+
+        // Fondo (capa oscura que le da profundidad)
+        const floorMat = mat.clone();
+        floorMat.color.multiplyScalar(0.6); // Oscurecemos un poco
+        floorMat.roughness = 0.6;
+        const floor = new Mesh(gan.floor[pieceType], floorMat);
+        floor.userData.stickerColor = color;
+        this.mats.push(floorMat);
+
+        face.add(plate, bevel, floor);
+
+        // Orientar la cara (Usando la función matemática de gan-skin)
+        const o = 0.97 / 2 + GAN_LIFT;
+        if (axis === 0) {
+          face.position.x = sign * o;
+          face.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+        } else if (axis === 1) {
+          face.position.y = sign * o;
+          face.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+        } else {
+          face.position.z = sign * o;
+          if (sign < 0) face.rotation.y = Math.PI;
+        }
+
+        const roll = ganRoll(data.home, axis, pieceType);
+        if (roll) face.rotateZ(roll);
+
+        mesh.add(face);
+      }
+
+      this.cubeRoot.add(mesh);
+      return { ...data, mesh };
+    });
+  }
 
   private buildLights(scene: Scene) {
+    // Mantenemos tus luces originales que daban un tono más limpio
     const hemi = new HemisphereLight("#d5e4f5", "#2a2118", 0.72);
-    const amb = new AmbientLight("#ffffff", 0.38);
+    const amb = new AmbientLight("#ffffff", 0.5);
+
+    // Tu PointLight original
     const key = new PointLight("#fff4e4", 45, 50);
     key.position.set(0, 10, 0);
-    key.castShadow = false;
-    key.shadow.mapSize.set(1024, 1024);
-    key.shadow.bias = -0.0015;
 
     const fill = new DirectionalLight("#9fdfff", 0.48);
     fill.position.set(-7, 3.2, -4);
@@ -1151,7 +1064,7 @@ export class CubeEngine {
     const rim = new DirectionalLight("#ffb25a", 0.32);
     rim.position.set(-2, 4, -8);
 
-    for (const obj of [hemi, amb, key, key.target, fill, rim]) {
+    for (const obj of [hemi, amb, key, fill, rim]) {
       scene.add(obj);
       this.owned.push(obj);
     }
@@ -1173,40 +1086,64 @@ export class CubeEngine {
   public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
     const palettes = {
       classic: {
-        R: "#de1b24", O: "#ff6a00", W: "#f7f7f2", Y: "#ffd000", G: "#009b48", B: "#0057d9",
+        R: "#de1b24",
+        O: "#ff6a00",
+        W: "#f7f7f2",
+        Y: "#ffd000",
+        G: "#009b48",
+        B: "#0057d9",
       },
       neon: {
-        R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff",
+        R: "#ff003c",
+        O: "#ff7b00",
+        W: "#f0f0f0",
+        Y: "#ffee00",
+        G: "#00ff41",
+        B: "#00b3ff",
       },
       pastel: {
-        R: "#ff6b6b", O: "#ffa502", W: "#f1f2f6", Y: "#ffeda0", G: "#2ed573", B: "#70a1ff",
+        R: "#ff6b6b",
+        O: "#ffa502",
+        W: "#f1f2f6",
+        Y: "#ffeda0",
+        G: "#2ed573",
+        B: "#70a1ff",
       },
       halloween: {
-        R: "#ff3300", O: "#ff8c00", W: "#e0e0e0", Y: "#ffcc00", G: "#00cc44", B: "#6600cc",
+        R: "#ff3300",
+        O: "#ff8c00",
+        W: "#e0e0e0",
+        Y: "#ffcc00",
+        G: "#00cc44",
+        B: "#6600cc",
       },
     };
 
     const colors = palettes[theme];
 
     for (const piece of this.pieces) {
-  piece.mesh.children.forEach((child) => {
-    if (child instanceof Mesh && child.material instanceof MeshPhysicalMaterial) {
-      const colorId = child.userData.stickerColor;
-      if (colorId && colors[colorId as keyof typeof colors]) {
-        const newHex = colors[colorId as keyof typeof colors];
-        child.material.color.set(newHex);
-        
-        // Solo aplicar emisión si no es el tema clásico (para evitar brillos raros)
-        if (theme !== "classic") {
-           child.material.emissive.set(newHex);
-           child.material.emissiveIntensity = 0.2; 
-        } else {
-           child.material.emissive.set(0x000000);
+      // Ahora los colores están en el sub-grupo 'face', hay que entrar a él
+      piece.mesh.children.forEach((child) => {
+        if (child instanceof Group) {
+          child.children.forEach((meshPart) => {
+            if (meshPart instanceof Mesh && meshPart.material instanceof MeshPhysicalMaterial) {
+              const colorId = meshPart.userData.stickerColor;
+              if (colorId && colors[colorId as keyof typeof colors]) {
+                const newHex = colors[colorId as keyof typeof colors];
+                meshPart.material.color.set(newHex);
+
+                if (theme !== "classic") {
+                  meshPart.material.emissive.set(newHex);
+                  meshPart.material.emissiveIntensity = 0.15;
+                } else {
+                  meshPart.material.emissive.set(0x000000);
+                }
+              }
+            }
+          });
         }
-      }
+      });
     }
-  });
-}
   }
 }
 
@@ -1234,13 +1171,7 @@ function dominant(n: Vector3): Axis {
   return 2;
 }
 
-function quatFromOri(
-  ori: Cubie["ori"],
-  q: Quaternion,
-  x: Vector3,
-  y: Vector3,
-  z: Vector3
-) {
+function quatFromOri(ori: Cubie["ori"], q: Quaternion, x: Vector3, y: Vector3, z: Vector3) {
   x.set(ori[0][0], ori[0][1], ori[0][2]);
   y.set(ori[1][0], ori[1][1], ori[1][2]);
   z.set(ori[2][0], ori[2][1], ori[2][2]);
@@ -1275,28 +1206,6 @@ function snapQuarters(angle: number, vel: number): number {
   }
 
   return steps;
-}
-
-function orientSticker(
-  mesh: Mesh,
-  type: "center" | "edge" | "corner",
-  axis: Axis,
-  sign: number,
-  home: Vec3 // No lo usamos ahora, pero lo dejamos por compatibilidad
-) {
-  // Para una caja, solo necesitamos rotarla para que su cara plana (eje Z)
-  // mire hacia afuera en la dirección correcta (axis + sign).
-  
-  if (axis === 0) {
-    // Eje X
-    mesh.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
-  } else if (axis === 1) {
-    // Eje Y
-    mesh.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
-  } else {
-    // Eje Z
-    mesh.rotation.y = sign > 0 ? 0 : Math.PI;
-  }
 }
 
 declare global {
