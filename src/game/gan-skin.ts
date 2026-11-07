@@ -128,8 +128,9 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
     depth: depth,
     bevelEnabled: false,
   });
-  // Centramos la pieza para que el centro quede en (0,0,0)
-  geo.translate(0, 0, -depth / 2);
+  // ALINEACIÓN CLAVE: La cara exterior queda en Z=0 y el cuerpo se extruye hacia adentro (Z negativo).
+  // Así, el origen (0,0,0) coincide exactamente con el del sticker.
+  geo.translate(0, 0, -depth);
   return geo;
 }
 
