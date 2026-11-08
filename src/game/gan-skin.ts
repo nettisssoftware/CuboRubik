@@ -134,7 +134,6 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   return geo;
 }
 
-
 function shapeGeo(loop: Pt[]): ShapeGeometry {
   return new ShapeGeometry(shapeFrom(loop));
 }

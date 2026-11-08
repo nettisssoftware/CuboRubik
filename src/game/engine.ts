@@ -958,6 +958,7 @@ export class CubeEngine {
   const gan = createGanGeometries();
   this.geos.push(...gan.all);
 
+  // Material del cuerpo negro (LIMPIO, sin polygonOffset)
   const plastic = new MeshPhysicalMaterial({
     color: "#0a0a0a",
     roughness: 0.55,
@@ -966,6 +967,7 @@ export class CubeEngine {
   });
   this.mats.push(plastic);
 
+  // Materiales de los stickers (LIMPIO, sin polygonOffset)
   const stickerMats = new Map<string, MeshPhysicalMaterial>();
   for (const [id, hex] of Object.entries(FACE_HEX)) {
     const mat = new MeshPhysicalMaterial({
@@ -976,10 +978,6 @@ export class CubeEngine {
       clearcoatRoughness: 0.15,
       emissive: hex,
       emissiveIntensity: 0.1,
-      // SOLUCIÓN GLOBAL AL Z-FIGHTING:
-      polygonOffset: true,
-      polygonOffsetFactor: -1, // Empuja el sticker "virtualmente" hacia adelante
-      polygonOffsetUnits: -1,
     });
     stickerMats.set(id, mat);
     this.mats.push(mat);
@@ -1002,22 +1000,19 @@ export class CubeEngine {
       const color = faceColor(axis, sign);
       const mat = stickerMats.get(color)!;
 
-      // Creamos un grupo para la cara. Ambos (negro y color) irán aquí.
       const face = new Group();
 
-      // 1. La pieza negra (centrada en su propio origen 0,0,0)
+      // 1. Cuerpo negro
       const body = new Mesh(gan.body[kind], plastic);
       
-      // 2. El sticker de color (plano). 
-      // Lo posicionamos justo en la cara exterior de la pieza negra.
-      // Como la pieza negra se extruye hacia adentro (-Z), la cara exterior está en Z = 0.
+      // 2. Sticker de color (a 0.005 de la superficie, que es su origen local Z=0)
       const sticker = new Mesh(gan.sticker[kind], mat);
       sticker.userData.stickerColor = color;
-      sticker.position.z = 0.475; // Un pelín para evitar parpadeo (Z-fighting)
+      sticker.position.z = 0.005; // <-- LA POSICIÓN CORRECTA
 
       face.add(body, sticker);
 
-      // 3. Orientar la cara completa (esto rotará AMBOS, negro y color)
+      // 3. Orientación de la cara
       const offset = 0.94 / 2; 
       
       if (axis === 0) {
@@ -1031,7 +1026,7 @@ export class CubeEngine {
         if (sign < 0) face.rotation.y = Math.PI;
       }
 
-      // 4. Aplicar la rotación del mordisco (esto también rotará AMBOS)
+      // 4. Rotación del mordisco
       const roll = ganRoll(data.home, axis, kind);
       if (roll) face.rotateZ(roll);
 
@@ -1042,6 +1037,7 @@ export class CubeEngine {
     return { ...data, mesh };
   });
 }
+
   
   private buildLights(scene: Scene) {
     // Mantenemos tus luces originales que daban un tono más limpio
