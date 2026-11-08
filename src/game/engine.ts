@@ -958,7 +958,7 @@ export class CubeEngine {
   const gan = createGanGeometries();
   this.geos.push(...gan.all);
 
-  // Material del cuerpo negro (LIMPIO, sin polygonOffset)
+  // 1. Material del cuerpo negro (LIMPIO, sin trucos)
   const plastic = new MeshPhysicalMaterial({
     color: "#0a0a0a",
     roughness: 0.55,
@@ -967,7 +967,7 @@ export class CubeEngine {
   });
   this.mats.push(plastic);
 
-  // Materiales de los stickers (LIMPIO, sin polygonOffset)
+  // 2. Materiales de los stickers (LIMPIO, sin trucos)
   const stickerMats = new Map<string, MeshPhysicalMaterial>();
   for (const [id, hex] of Object.entries(FACE_HEX)) {
     const mat = new MeshPhysicalMaterial({
@@ -1000,15 +1000,21 @@ export class CubeEngine {
       const color = faceColor(axis, sign);
       const mat = stickerMats.get(color)!;
 
+      // Creamos un grupo para la cara
       const face = new Group();
 
-      // 1. Cuerpo negro
+      // 1. La pieza negra
       const body = new Mesh(gan.body[kind], plastic);
       
-      // 2. Sticker de color (a 0.005 de la superficie, que es su origen local Z=0)
+      // 2. El sticker
       const sticker = new Mesh(gan.sticker[kind], mat);
       sticker.userData.stickerColor = color;
-      sticker.position.z = 0.005; // <-- LA POSICIÓN CORRECTA
+      
+      // ¡AQUÍ ESTÁ LA MAGIA! 
+      // El sticker está a 0.005 unidades de la superficie exterior.
+      // Como el cuerpo negro está centrado en Z=0, su cara exterior está en Z=+0.47.
+      // Por lo tanto, el sticker debe estar en Z=0.47 + 0.005 = 0.475.
+      sticker.position.z = 0.475; 
 
       face.add(body, sticker);
 
@@ -1037,7 +1043,6 @@ export class CubeEngine {
     return { ...data, mesh };
   });
 }
-
   
   private buildLights(scene: Scene) {
     // Mantenemos tus luces originales que daban un tono más limpio
