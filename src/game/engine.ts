@@ -958,24 +958,22 @@ export class CubeEngine {
     const gan = createGanGeometries();
     this.geos.push(...gan.all);
 
-    // 1. Material del cuerpo negro (LIMPIO, sin trucos)
+    // 1. MATERIALES
     const plastic = new MeshPhysicalMaterial({
       color: "#0a0a0a",
       roughness: 0.55,
       metalness: 0.0,
-      clearcoat: 0.2,
     });
     this.mats.push(plastic);
 
-    // 2. Materiales de los stickers (LIMPIO, sin trucos)
     const stickerMats = new Map<string, MeshPhysicalMaterial>();
     for (const [id, hex] of Object.entries(FACE_HEX)) {
       const mat = new MeshPhysicalMaterial({
         color: hex,
-        roughness: 0.4,
+        roughness: 0.3,
         metalness: 0.0,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.15,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.1,
         emissive: hex,
         emissiveIntensity: 0.1,
       });
@@ -983,6 +981,15 @@ export class CubeEngine {
       this.mats.push(mat);
     }
 
+    // 2. NÚCLEO NEGRO CENTRAL
+    // Un cubo grande que ocupa el espacio interior.
+    // Su tamaño es ligeramente menor que el cubo total para que quepa.
+    const coreGeo = new BoxGeometry(2.85, 2.85, 2.85);
+    const core = new Mesh(coreGeo, plastic);
+    this.geos.push(coreGeo);
+    this.cubeRoot.add(core);
+
+    // 3. STICKERS DE COLORES
     return createSolved().map((data, id) => {
       const mesh = new Group();
       mesh.userData.isCubie = true;
@@ -994,53 +1001,44 @@ export class CubeEngine {
       if (activeFaces === 3) kind = "corner";
 
       for (const axis of [0, 1, 2] as const) {
-  const sign = data.home[axis];
-  if (sign === 0) continue;
+        const sign = data.home[axis];
+        if (sign === 0) continue;
 
-  const color = faceColor(axis, sign);
-  const mat = stickerMats.get(color)!;
+        const color = faceColor(axis, sign);
+        const mat = stickerMats.get(color)!;
 
-  const face = new Group();
+        const face = new Group();
 
-  // 1. La pieza negra (su cara exterior está en Z=0.47)
-  const body = new Mesh(gan.body[kind], plastic);
-  body.position.z = -0.47; 
+        // SOLO el sticker con relieve (sin cuerpo negro individual)
+        const sticker = new Mesh(gan.sticker[kind], mat);
+        sticker.userData.stickerColor = color;
 
-  // 2. El sticker con grosor
-  const sticker = new Mesh(gan.sticker[kind], mat);
-  sticker.userData.stickerColor = color;
-  // Lo ponemos justo en la superficie. Al tener 0.02 de grosor, 
-  // sobresaldrá 0.01 hacia afuera y 0.01 hacia adentro, tapando el borde cuadrado del negro.
-  sticker.position.z = 0.001; 
+        // Orientación base de la cara
+        const offset = 0.94 / 2;
+        if (axis === 0) {
+          face.position.x = sign * offset;
+          face.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+        } else if (axis === 1) {
+          face.position.y = sign * offset;
+          face.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+        } else {
+          face.position.z = sign * offset;
+          if (sign < 0) face.rotation.y = Math.PI;
+        }
 
-  face.add(body, sticker);
+        // Rotación del mordisco
+        const roll = ganRoll(data.home, axis, kind);
+        if (roll) face.rotateZ(roll);
 
-  // 3. Orientación de la cara
-  const offset = 0.94 / 2; 
-  
-  if (axis === 0) {
-    face.position.x = sign * offset;
-    face.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
-  } else if (axis === 1) {
-    face.position.y = sign * offset;
-    face.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
-  } else {
-    face.position.z = sign * offset;
-    if (sign < 0) face.rotation.y = Math.PI;
-  }
+        face.add(sticker);
+        mesh.add(face);
+      }
 
-  // 4. Rotación del mordisco
-  const roll = ganRoll(data.home, axis, kind);
-  if (roll) face.rotateZ(roll);
-
-  mesh.add(face);
-}
-      
       this.cubeRoot.add(mesh);
       return { ...data, mesh };
     });
   }
-  
+
   private buildLights(scene: Scene) {
     // Mantenemos tus luces originales que daban un tono más limpio
     const amb = new AmbientLight("#ffffff", 0.5);
