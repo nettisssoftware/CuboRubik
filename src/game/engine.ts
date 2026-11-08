@@ -66,7 +66,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 0.96;
+const SPACING = 0.97;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
 const BODY_SIZE = 0.9;
@@ -985,7 +985,7 @@ export class CubeEngine {
     // 2. NÚCLEO NEGRO CENTRAL
     // Un cubo grande que ocupa el espacio interior.
     // Su tamaño es ligeramente menor que el cubo total para que quepa.
-    const coreGeo = new BoxGeometry(2.75, 2.75, 2.75);
+    const coreGeo = new BoxGeometry(2.60, 2.60, 2.60);
     const core = new Mesh(coreGeo, plastic);
     this.geos.push(coreGeo);
     this.cubeRoot.add(core);
@@ -1013,7 +1013,8 @@ export class CubeEngine {
         // SOLO el sticker con relieve (sin cuerpo negro individual)
         const sticker = new Mesh(gan.sticker[kind], mat);
         sticker.userData.stickerColor = color;
-
+        sticker.position.z = 0; 
+        
         // Orientación base de la cara
         const offset = 0.94 / 2;
         if (axis === 0) {
