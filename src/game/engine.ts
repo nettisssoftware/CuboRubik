@@ -971,12 +971,12 @@ export class CubeEngine {
     for (const [id, hex] of Object.entries(FACE_HEX)) {
       const mat = new MeshPhysicalMaterial({
         color: hex,
-        roughness: 0.3,
+        roughness: 0.2,
         metalness: 0.0,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.1,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.5,
         emissive: hex,
-        emissiveIntensity: 0.1,
+        emissiveIntensity: 0.5,
       });
       stickerMats.set(id, mat);
       this.mats.push(mat);
@@ -985,7 +985,7 @@ export class CubeEngine {
     // 2. NÚCLEO NEGRO CENTRAL
     // Un cubo grande que ocupa el espacio interior.
     // Su tamaño es ligeramente menor que el cubo total para que quepa.
-    const coreGeo = new BoxGeometry(2.85, 2.85, 2.85);
+    const coreGeo = new BoxGeometry(2.75, 2.75, 2.75);
     const core = new Mesh(coreGeo, plastic);
     this.geos.push(coreGeo);
     this.cubeRoot.add(core);

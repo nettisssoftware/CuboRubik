@@ -138,14 +138,18 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
 function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
-    depth: 0.04, // Grosor del sticker
-    bevelEnabled: false,
+    depth: 0.09,             // 1. Más grosor (relieve negativo profundo)
+    bevelEnabled: true,      // 2. Biselado activado
+    bevelThickness: 0.015,   // 3. Bisel sutil
+    bevelSize: 0.015,
+    bevelSegments: 3,
+    curveSegments: 4,
   });
-  // Lo centramos para que su origen esté en el medio de su propio grosor
-  geo.translate(0, 0, -0.01);
+  // 4. Empujamos el sticker hacia adentro (relieve negativo puro)
+  // Su cara frontal queda en Z=0, al ras.
+  geo.translate(0, 0, -0.03); 
   return geo;
 }
-
 
 function shapeGeo(loop: Pt[]): ShapeGeometry {
   return new ShapeGeometry(shapeFrom(loop));
