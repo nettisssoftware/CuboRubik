@@ -1014,7 +1014,7 @@ export class CubeEngine {
       // El sticker está a 0.005 unidades de la superficie exterior.
       // Como el cuerpo negro está centrado en Z=0, su cara exterior está en Z=+0.47.
       // Por lo tanto, el sticker debe estar en Z=0.47 + 0.005 = 0.475.
-      sticker.position.z = 0.471; 
+      sticker.position.z = 0.467; 
 
       face.add(body, sticker);
 
