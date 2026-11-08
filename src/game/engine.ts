@@ -1013,7 +1013,7 @@ export class CubeEngine {
       // Como la pieza negra se extruye hacia adentro (-Z), la cara exterior está en Z = 0.
       const sticker = new Mesh(gan.sticker[kind], mat);
       sticker.userData.stickerColor = color;
-      sticker.position.z = 0.005; // Un pelín para evitar parpadeo (Z-fighting)
+      sticker.position.z = 0.475; // Un pelín para evitar parpadeo (Z-fighting)
 
       face.add(body, sticker);
 
