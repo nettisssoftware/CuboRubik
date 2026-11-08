@@ -81,8 +81,8 @@ export function CubeStage(props: Props) {
   return (
     <Canvas
       shadows
-      dpr={[1, 1.75]}
-      camera={{ fov: 32, near: 0.1, far: 200, position: [4, 3.2, 10] }}
+      dpr={[1,2]}
+      camera={{ fov: 32, near: 1, far: 50, position: [4, 3.2, 10] }}
       gl={{
         antialias: true,
         alpha: true,

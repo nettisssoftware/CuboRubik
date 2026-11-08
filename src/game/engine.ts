@@ -976,6 +976,10 @@ export class CubeEngine {
       clearcoatRoughness: 0.15,
       emissive: hex,
       emissiveIntensity: 0.1,
+      // SOLUCIÓN GLOBAL AL Z-FIGHTING:
+      polygonOffset: true,
+      polygonOffsetFactor: -1, // Empuja el sticker "virtualmente" hacia adelante
+      polygonOffsetUnits: -1,
     });
     stickerMats.set(id, mat);
     this.mats.push(mat);
@@ -998,22 +1002,23 @@ export class CubeEngine {
       const color = faceColor(axis, sign);
       const mat = stickerMats.get(color)!;
 
-      // Creamos un grupo para esta cara específica
+      // Creamos un grupo para la cara. Ambos (negro y color) irán aquí.
       const face = new Group();
 
-      // 1. La pieza negra (comparte la silueta del sticker)
+      // 1. La pieza negra (centrada en su propio origen 0,0,0)
       const body = new Mesh(gan.body[kind], plastic);
-      // 2. El sticker de color (plano)
+      
+      // 2. El sticker de color (plano). 
+      // Lo posicionamos justo en la cara exterior de la pieza negra.
+      // Como la pieza negra se extruye hacia adentro (-Z), la cara exterior está en Z = 0.
       const sticker = new Mesh(gan.sticker[kind], mat);
       sticker.userData.stickerColor = color;
-
-      // 3. Sumamos un pelín al sticker para evitar Z-fighting (parpadeo)
-      sticker.position.z = 0.001;
+      sticker.position.z = 0.001; // Un pelín para evitar parpadeo (Z-fighting)
 
       face.add(body, sticker);
 
-      // 4. Orientar el grupo "face" hacia el exterior del cubo
-      const offset = 0.94 / 2; // La mitad del tamaño del cubo
+      // 3. Orientar la cara completa (esto rotará AMBOS, negro y color)
+      const offset = 0.94 / 2; 
       
       if (axis === 0) {
         face.position.x = sign * offset;
@@ -1026,7 +1031,7 @@ export class CubeEngine {
         if (sign < 0) face.rotation.y = Math.PI;
       }
 
-      // 5. Aplicar la rotación del mordisco (solo afecta a aristas)
+      // 4. Aplicar la rotación del mordisco (esto también rotará AMBOS)
       const roll = ganRoll(data.home, axis, kind);
       if (roll) face.rotateZ(roll);
 
@@ -1037,7 +1042,6 @@ export class CubeEngine {
     return { ...data, mesh };
   });
 }
-
   
   private buildLights(scene: Scene) {
     // Mantenemos tus luces originales que daban un tono más limpio
