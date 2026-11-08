@@ -955,94 +955,97 @@ export class CubeEngine {
   }
 
   private buildPieces(): Piece[] {
-  const gan = createGanGeometries();
-  this.geos.push(...gan.all);
+    const gan = createGanGeometries();
+    this.geos.push(...gan.all);
 
-  // 1. Material del cuerpo negro (LIMPIO, sin trucos)
-  const plastic = new MeshPhysicalMaterial({
-    color: "#0a0a0a",
-    roughness: 0.55,
-    metalness: 0.0,
-    clearcoat: 0.2,
-  });
-  this.mats.push(plastic);
-
-  // 2. Materiales de los stickers (LIMPIO, sin trucos)
-  const stickerMats = new Map<string, MeshPhysicalMaterial>();
-  for (const [id, hex] of Object.entries(FACE_HEX)) {
-    const mat = new MeshPhysicalMaterial({
-      color: hex,
-      roughness: 0.4,
+    // 1. Material del cuerpo negro (LIMPIO, sin trucos)
+    const plastic = new MeshPhysicalMaterial({
+      color: "#0a0a0a",
+      roughness: 0.55,
       metalness: 0.0,
-      clearcoat: 0.3,
-      clearcoatRoughness: 0.15,
-      emissive: hex,
-      emissiveIntensity: 0.1,
+      clearcoat: 0.2,
     });
-    stickerMats.set(id, mat);
-    this.mats.push(mat);
+    this.mats.push(plastic);
+
+    // 2. Materiales de los stickers (LIMPIO, sin trucos)
+    const stickerMats = new Map<string, MeshPhysicalMaterial>();
+    for (const [id, hex] of Object.entries(FACE_HEX)) {
+      const mat = new MeshPhysicalMaterial({
+        color: hex,
+        roughness: 0.4,
+        metalness: 0.0,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.15,
+        emissive: hex,
+        emissiveIntensity: 0.1,
+      });
+      stickerMats.set(id, mat);
+      this.mats.push(mat);
+    }
+
+    return createSolved().map((data, id) => {
+      const mesh = new Group();
+      mesh.userData.isCubie = true;
+      mesh.userData.cubieId = id;
+
+      const activeFaces = data.home.filter((v) => v !== 0).length;
+      let kind: "center" | "edge" | "corner" = "center";
+      if (activeFaces === 2) kind = "edge";
+      if (activeFaces === 3) kind = "corner";
+
+      for (const axis of [0, 1, 2] as const) {
+        const sign = data.home[axis];
+        if (sign === 0) continue;
+
+        const color = faceColor(axis, sign);
+        const mat = stickerMats.get(color)!;
+
+        const face = new Group();
+
+        // 1. La pieza negra (conserva su geometría original centrada)
+        const body = new Mesh(gan.body[kind], plastic);
+
+        // ¡EL TRUCO! Empujamos el cuerpo negro hacia adentro del cubo
+        // para que su cara frontal (que estaba en +0.47) quede exactamente en Z=0.
+        body.position.z = -0.47;
+
+        // 2. El sticker (se queda en la superficie, en Z=0.001)
+        const sticker = new Mesh(gan.sticker[kind], mat);
+        sticker.userData.stickerColor = color;
+        sticker.position.z = 0.001;
+
+        face.add(body, sticker);
+
+        // 3. Orientación de la cara (igual que antes)
+        const offset = 0.94 / 2;
+
+        if (axis === 0) {
+          face.position.x = sign * offset;
+          face.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+        } else if (axis === 1) {
+          face.position.y = sign * offset;
+          face.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+        } else {
+          face.position.z = sign * offset;
+          if (sign < 0) face.rotation.y = Math.PI;
+        }
+
+        // 4. Rotación del mordisco
+        const roll = ganRoll(data.home, axis, kind);
+        if (roll) face.rotateZ(roll);
+
+        mesh.add(face);
+      }
+      this.cubeRoot.add(mesh);
+      return { ...data, mesh };
+    });
   }
-
-  return createSolved().map((data, id) => {
-    const mesh = new Group();
-    mesh.userData.isCubie = true;
-    mesh.userData.cubieId = id;
-
-    const activeFaces = data.home.filter((v) => v !== 0).length;
-    let kind: "center" | "edge" | "corner" = "center";
-    if (activeFaces === 2) kind = "edge";
-    if (activeFaces === 3) kind = "corner";
-
-    for (const axis of [0, 1, 2] as const) {
-  const sign = data.home[axis];
-  if (sign === 0) continue;
-
-  const color = faceColor(axis, sign);
-  const mat = stickerMats.get(color)!;
-
-  const face = new Group();
-
-  // 1. La pieza negra (nace en Z=0 y va hacia adentro)
-  const body = new Mesh(gan.body[kind], plastic);
-  
-  // 2. El sticker (justo en la superficie, Z=0.001)
-  const sticker = new Mesh(gan.sticker[kind], mat);
-  sticker.userData.stickerColor = color;
-  sticker.position.z = 0.001;
-
-  face.add(body, sticker);
-
-  // 3. Orientación de la cara (esto NO cambia)
-  const offset = 0.94 / 2; 
-  
-  if (axis === 0) {
-    face.position.x = sign * offset;
-    face.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
-  } else if (axis === 1) {
-    face.position.y = sign * offset;
-    face.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
-  } else {
-    face.position.z = sign * offset;
-    if (sign < 0) face.rotation.y = Math.PI;
-  }
-
-  // 4. Rotación del mordisco
-  const roll = ganRoll(data.home, axis, kind);
-  if (roll) face.rotateZ(roll);
-
-  mesh.add(face);
-}
-    
-    this.cubeRoot.add(mesh);
-    return { ...data, mesh };
-  });
-}
   
   private buildLights(scene: Scene) {
     // Mantenemos tus luces originales que daban un tono más limpio
     const amb = new AmbientLight("#ffffff", 0.5);
     const hemi = new HemisphereLight("#ffffff", "#222222", 1.2); // Sube un poco la luz ambiental
-    
+
     // Tu PointLight original
     const key = new PointLight("#ffffff", 45, 50);
     key.position.set(0, 10, 0);
@@ -1111,29 +1114,28 @@ export class CubeEngine {
     const colors = palettes[theme];
 
     for (const piece of this.pieces) {
-  piece.mesh.children.forEach((child) => {
-    if (child instanceof Group) {
-      child.children.forEach((meshPart) => {
-        if (meshPart instanceof Mesh && meshPart.userData.stickerColor) {
-          const colorId = meshPart.userData.stickerColor;
-          if (colorId && colors[colorId as keyof typeof colors]) {
-            const newHex = colors[colorId as keyof typeof colors];
-            if (meshPart.material instanceof MeshPhysicalMaterial) {
-              meshPart.material.color.set(newHex);
-              if (theme !== "classic") {
-                meshPart.material.emissive.set(newHex);
-                meshPart.material.emissiveIntensity = 0.15;
-              } else {
-                meshPart.material.emissive.set(0x000000);
+      piece.mesh.children.forEach((child) => {
+        if (child instanceof Group) {
+          child.children.forEach((meshPart) => {
+            if (meshPart instanceof Mesh && meshPart.userData.stickerColor) {
+              const colorId = meshPart.userData.stickerColor;
+              if (colorId && colors[colorId as keyof typeof colors]) {
+                const newHex = colors[colorId as keyof typeof colors];
+                if (meshPart.material instanceof MeshPhysicalMaterial) {
+                  meshPart.material.color.set(newHex);
+                  if (theme !== "classic") {
+                    meshPart.material.emissive.set(newHex);
+                    meshPart.material.emissiveIntensity = 0.15;
+                  } else {
+                    meshPart.material.emissive.set(0x000000);
+                  }
+                }
               }
             }
-          }
+          });
         }
       });
     }
-  });
-}
-    
   }
 }
 
