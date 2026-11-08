@@ -131,7 +131,7 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   });
   // CAMBIO CLAVE: Extruimos hacia adentro, no centramos.
   // Su cara exterior queda en Z=0 y el cuerpo va hacia Z=-0.94.
-  geo.translate(0, 0, -depth);
+  geo.translate(0, 0, -depth / 2);
   return geo;
 }
 
