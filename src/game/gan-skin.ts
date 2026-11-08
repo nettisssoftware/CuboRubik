@@ -122,17 +122,19 @@ function shapeFrom(loop: Pt[]): Shape {
   return shape;
 }
 
+
 function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
     depth: depth,
     bevelEnabled: false,
   });
-  // EL ARREGLO: Desplazamos la geometría para que el centro de la pieza negra
-  // coincida exactamente con el centro del sticker (0,0,0) en el plano XY.
-  geo.translate(0, 0, -depth / 2);
+  // CAMBIO CLAVE: Extruimos hacia adentro, no centramos.
+  // Su cara exterior queda en Z=0 y el cuerpo va hacia Z=-0.94.
+  geo.translate(0, 0, -depth);
   return geo;
 }
+
 
 function shapeGeo(loop: Pt[]): ShapeGeometry {
   return new ShapeGeometry(shapeFrom(loop));
