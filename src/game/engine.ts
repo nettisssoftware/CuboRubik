@@ -994,50 +994,48 @@ export class CubeEngine {
       if (activeFaces === 3) kind = "corner";
 
       for (const axis of [0, 1, 2] as const) {
-        const sign = data.home[axis];
-        if (sign === 0) continue;
+  const sign = data.home[axis];
+  if (sign === 0) continue;
 
-        const color = faceColor(axis, sign);
-        const mat = stickerMats.get(color)!;
+  const color = faceColor(axis, sign);
+  const mat = stickerMats.get(color)!;
 
-        const face = new Group();
+  const face = new Group();
 
-        // 1. La pieza negra (conserva su geometría original centrada)
-        const body = new Mesh(gan.body[kind], plastic);
+  // 1. La pieza negra (su cara exterior está en Z=0.47)
+  const body = new Mesh(gan.body[kind], plastic);
+  body.position.z = -0.47; 
 
-        // ¡EL TRUCO! Empujamos el cuerpo negro hacia adentro del cubo
-        // para que su cara frontal (que estaba en +0.47) quede exactamente en Z=0.
-        body.position.z = -0.47;
+  // 2. El sticker con grosor
+  const sticker = new Mesh(gan.sticker[kind], mat);
+  sticker.userData.stickerColor = color;
+  // Lo ponemos justo en la superficie. Al tener 0.02 de grosor, 
+  // sobresaldrá 0.01 hacia afuera y 0.01 hacia adentro, tapando el borde cuadrado del negro.
+  sticker.position.z = 0.001; 
 
-        // 2. El sticker (se queda en la superficie, en Z=0.001)
-        const sticker = new Mesh(gan.sticker[kind], mat);
-        sticker.userData.stickerColor = color;
-        sticker.position.z = 0.001;
+  face.add(body, sticker);
 
-        sticker.scale.setScalar(1.002);
-        
-        face.add(body, sticker);
+  // 3. Orientación de la cara
+  const offset = 0.94 / 2; 
+  
+  if (axis === 0) {
+    face.position.x = sign * offset;
+    face.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+  } else if (axis === 1) {
+    face.position.y = sign * offset;
+    face.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+  } else {
+    face.position.z = sign * offset;
+    if (sign < 0) face.rotation.y = Math.PI;
+  }
 
-        // 3. Orientación de la cara (igual que antes)
-        const offset = 0.94 / 2;
+  // 4. Rotación del mordisco
+  const roll = ganRoll(data.home, axis, kind);
+  if (roll) face.rotateZ(roll);
 
-        if (axis === 0) {
-          face.position.x = sign * offset;
-          face.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
-        } else if (axis === 1) {
-          face.position.y = sign * offset;
-          face.rotation.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
-        } else {
-          face.position.z = sign * offset;
-          if (sign < 0) face.rotation.y = Math.PI;
-        }
-
-        // 4. Rotación del mordisco
-        const roll = ganRoll(data.home, axis, kind);
-        if (roll) face.rotateZ(roll);
-
-        mesh.add(face);
-      }
+  mesh.add(face);
+}
+      
       this.cubeRoot.add(mesh);
       return { ...data, mesh };
     });

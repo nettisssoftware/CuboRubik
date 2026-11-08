@@ -33,11 +33,11 @@ export function createGanGeometries(): GanGeos {
   const bodyEdge = extrudeBody(loopEdge, DEPTH);
   const bodyCorner = extrudeBody(loopCorner, DEPTH);
 
-  // 3. Crear los stickers (planos, sin grosor)
-  const stickerCenter = shapeGeo(loopCenter);
-  const stickerEdge = shapeGeo(loopEdge);
-  const stickerCorner = shapeGeo(loopCorner);
-
+  // 3. Crear los stickers (CON relieve/grosor para tapar la tapa cuadrada)
+  const stickerCenter = extrudeSticker(loopCenter);
+  const stickerEdge = extrudeSticker(loopEdge);
+  const stickerCorner = extrudeSticker(loopCorner);
+  
   const body = { center: bodyCenter, edge: bodyEdge, corner: bodyCorner };
   const sticker = { center: stickerCenter, edge: stickerEdge, corner: stickerCorner };
 
@@ -132,6 +132,17 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   // CAMBIO CLAVE: Extruimos hacia adentro, no centramos.
   // Su cara exterior queda en Z=0 y el cuerpo va hacia Z=-0.94.
   geo.translate(0, 0, -depth / 2);
+  return geo;
+}
+
+function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
+  const shape = shapeFrom(loop);
+  const geo = new ExtrudeGeometry(shape, {
+    depth: 0.04, // Grosor del sticker
+    bevelEnabled: false,
+  });
+  // Lo centramos para que su origen esté en el medio de su propio grosor
+  geo.translate(0, 0, -0.01);
   return geo;
 }
 
