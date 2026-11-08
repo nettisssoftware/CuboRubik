@@ -1014,6 +1014,8 @@ export class CubeEngine {
         sticker.userData.stickerColor = color;
         sticker.position.z = 0.001;
 
+        sticker.scale.setScalar(1.002);
+        
         face.add(body, sticker);
 
         // 3. Orientación de la cara (igual que antes)
