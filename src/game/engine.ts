@@ -14,6 +14,7 @@ import {
   Scene,
   Vector2,
   Vector3,
+  BoxGeometry,
   type Intersection,
 } from "three";
 import {
