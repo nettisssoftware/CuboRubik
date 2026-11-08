@@ -963,6 +963,9 @@ export class CubeEngine {
     roughness: 0.55,
     metalness: 0.0,
     clearcoat: 0.2,
+    polygonOffset: true,
+    polygonOffsetFactor: 1, // Positivo = se dibuja más atrás
+    polygonOffsetUnits: 1,
   });
   this.mats.push(plastic);
 
@@ -978,8 +981,8 @@ export class CubeEngine {
       emissiveIntensity: 0.1,
       // SOLUCIÓN GLOBAL AL Z-FIGHTING:
       polygonOffset: true,
-      polygonOffsetFactor: -1, // Empuja el sticker "virtualmente" hacia adelante
-      polygonOffsetUnits: -1,
+      polygonOffsetFactor: -4, // Empuja el sticker "virtualmente" hacia adelante
+      polygonOffsetUnits: -4,
     });
     stickerMats.set(id, mat);
     this.mats.push(mat);
@@ -1013,7 +1016,7 @@ export class CubeEngine {
       // Como la pieza negra se extruye hacia adentro (-Z), la cara exterior está en Z = 0.
       const sticker = new Mesh(gan.sticker[kind], mat);
       sticker.userData.stickerColor = color;
-      sticker.position.z = 0.001; // Un pelín para evitar parpadeo (Z-fighting)
+      sticker.position.z = 0.002; // Un pelín para evitar parpadeo (Z-fighting)
 
       face.add(body, sticker);
 
