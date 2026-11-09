@@ -147,7 +147,7 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   });
   // 4. Empujamos el sticker hacia adentro (relieve negativo puro)
   // Su cara frontal queda en Z=0, al ras.
-  geo.translate(0, 0, -0.06); 
+  geo.translate(0, 0, -0.08); 
   return geo;
 }
 
