@@ -12,7 +12,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
-      { name: "theme-color", content: "#07060d" },
+      { name: "theme-color", content: "#ffffff" },
 
       // --- Verificación de Google Search Console ---
       { name: "google-site-verification", content: "xRImWB36n4cetSWfSfIgP-2oqJcJFhIFDdia3jlOaVA" },

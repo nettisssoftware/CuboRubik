@@ -140,14 +140,14 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth: 0.09,             // 1. Más grosor (relieve negativo profundo)
     bevelEnabled: true,      // 2. Biselado activado
-    bevelThickness: 0.01,   // 3. Bisel sutil
+    bevelThickness: 0.03,   // 3. Bisel sutil
     bevelSize: 0.01,
     bevelSegments: 2,
     curveSegments: 4,
   });
   // 4. Empujamos el sticker hacia adentro (relieve negativo puro)
   // Su cara frontal queda en Z=0, al ras.
-  geo.translate(0, 0, -0.08); 
+  geo.translate(0, 0, -0.07); 
   return geo;
 }
 

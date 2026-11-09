@@ -3,10 +3,10 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #07060d;
+  --color-bg: #ffffff;
   --color-surface: #14141c;
-  --color-fg: #f6f3ea;
-  --color-muted: #a39e93;
+  --color-fg: #0f0f0f;
+  --color-muted: #2b271d;
   --color-primary: #f0b429;
   --color-accent: #3ecfc2;
   --color-border: #2c2c36;
@@ -42,7 +42,7 @@
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  background: var(--color-bg) url("/arena.jpg") center / cover no-repeat;
+  background: var(--color-bg);
   color: var(--color-fg);
 }
 
