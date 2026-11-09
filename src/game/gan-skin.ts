@@ -17,7 +17,7 @@ export type GanGeos = {
 
 const SIZE = 0.94; // Ancho total de la pieza (y del sticker)
 const DEPTH = 0.94; // Profundidad total de la pieza negra
-const R = 0.16; // Radio de las esquinas redondeadas
+const R = 0.20; // Radio de las esquinas redondeadas
 const SAG = 0.18; // Profundidad del "mordisco" cóncavo de las aristas
 
 type Pt = [number, number];
@@ -26,7 +26,8 @@ export function createGanGeometries(): GanGeos {
   // 1. Generar las siluetas 2D
   const loopCenter = roundRect(SIZE, R, R, R, R);
   const loopEdge = edgeBulge(SIZE, SAG);
-  const loopCorner = square(SIZE); // Las esquinas son cuadrados perfectos
+  const CORNER_RADIUS = 0.05; // Radio de 5 para el borde radial de las 8 esquinas (ajusta a tu gusto)
+  const loopCorner = roundRect(SIZE, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS);
 
   // 2. Crear las piezas negras (extruidas en 3D)
   const bodyCenter = extrudeBody(loopCenter, DEPTH);
@@ -140,8 +141,8 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth: 0.09,             // 1. Más grosor (relieve negativo profundo)
     bevelEnabled: true,      // 2. Biselado activado
-    bevelThickness: 0.03,   // 3. Bisel sutil
-    bevelSize: 0.01,
+    bevelThickness: 0.04,   // 3. Bisel sutil
+    bevelSize: 0.04,
     bevelSegments: 2,
     curveSegments: 4,
   });
