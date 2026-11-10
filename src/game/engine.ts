@@ -15,6 +15,8 @@ import {
   Vector2,
   Vector3,
   BoxGeometry,
+  TextureLoader,
+  Texture,
   type Intersection,
 } from "three";
 import {
@@ -158,6 +160,7 @@ export class CubeEngine {
 
   private queue: Move[] = [];
   private anim: Anim | null = null;
+  private readonly logoTexture: Texture; // <-- AÑADE ESTO
 
   private history: {
     axis: Axis;
@@ -226,6 +229,12 @@ export class CubeEngine {
     this.hooks = opts.hooks;
 
     this.reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    // NUEVO: Cargar la textura del logo
+    const loader = new TextureLoader();
+    this.logoTexture = loader.load("/gan-logo.png");
+
+    // NUEVO: Ajustes para que el logo se vea nítido y centrado
+    this.logoTexture.center.set(0.5, 0.5);
 
     this.pieces = this.buildPieces();
 
@@ -977,7 +986,7 @@ export class CubeEngine {
 
     // 1. MATERIALES
     const plastic = new MeshPhysicalMaterial({
-      color: "#f5f5f5e2",
+      color: "#000000",
       roughness: 0.55,
       metalness: 0.0,
     });
@@ -1022,7 +1031,28 @@ export class CubeEngine {
         if (sign === 0) continue;
 
         const color = faceColor(axis, sign);
-        const mat = stickerMats.get(color)!;
+
+        // NUEVO: Lógica para inyectar el logo
+        let mat = stickerMats.get(color)!; // Cambiamos const por let
+
+        if (color === "W" && kind === "center") {
+          // Creamos un material exclusivo para el centro blanco
+          mat = new MeshPhysicalMaterial({
+            color: "#f7f7f2",
+            map: this.logoTexture, // Aquí inyectamos la imagen
+            roughness: 0.2,
+            metalness: 0.0,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.5,
+          });
+
+          // Ajustamos el logo al 60% del tamaño total (1 / 0.6 = 1.666)
+          const scale = 1.666;
+          this.logoTexture.repeat.set(scale, scale);
+          this.logoTexture.offset.set((1 - scale) / 2, (1 - scale) / 2);
+
+          this.mats.push(mat); // Lo guardamos para que se limpie al salir
+        }
 
         const face = new Group();
 
@@ -1087,6 +1117,10 @@ export class CubeEngine {
               const colorId = meshPart.userData.stickerColor;
               const newHex = colors[colorId];
               if (newHex && meshPart.material instanceof MeshPhysicalMaterial) {
+                // NUEVO: Escudo para proteger el logo
+                if (meshPart.material.map) {
+                  return;
+                }
                 meshPart.material.color.set(newHex);
                 meshPart.material.emissive.set(newHex);
                 meshPart.material.emissiveIntensity = 0.05;
@@ -1183,6 +1217,12 @@ export class CubeEngine {
               const colorId = meshPart.userData.stickerColor;
               if (colorId && colors[colorId as keyof typeof colors]) {
                 const newHex = colors[colorId as keyof typeof colors];
+                // NUEVO: Si el material tiene un mapa (el logo), no lo tocamos
+                // Este escudo debe ir ANTES de cambiar los colores
+                if (meshPart.material.map) {
+                  return;
+                }
+
                 if (meshPart.material instanceof MeshPhysicalMaterial) {
                   meshPart.material.color.set(newHex);
                   if (theme !== "classic") {
