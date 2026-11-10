@@ -14,6 +14,7 @@ type Props = {
   onFirstMove: () => void;
   onApi: (api: CubeApi) => void;
   settings: GameSettings; // <-- NUEVO
+  onSaveState: (state: any) => void;
 };
 
 function Scene(props: Props) {
@@ -34,6 +35,19 @@ function Scene(props: Props) {
       },
     });
     engineRef.current = engine;
+
+    // NUEVO: Configurar el guardado automático
+engine.onStateChange = () => {
+  const saveState = engine.getSaveState();
+  if (propsRef.current.onSaveState) {
+    propsRef.current.onSaveState(saveState);
+  }
+};
+
+// NUEVO: Cargar partida si existe
+if (props.settings.savedGame) {
+  engine.loadSaveState(props.settings.savedGame);
+}
     
     // API EXPUESTA AL PADRE
     propsRef.current.onApi({

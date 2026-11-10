@@ -15,6 +15,11 @@ export type GameSettings = {
   batterySaver: boolean;
   hapticsEnabled: boolean;
   customColors: FaceColor;
+
+   savedGame: {
+    history: { axis: 0 | 1 | 2; layer: -1 | 0 | 1; quarters: number }[];
+    phase: "playing" | "won";
+  } | null; 
 };
 
 export const DEFAULT_COLORS: FaceColor = {
@@ -38,6 +43,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   batterySaver: false,
   hapticsEnabled: true,
   customColors: DEFAULT_COLORS,
+  savedGame: null,
 };
 
 export function useSettings() {

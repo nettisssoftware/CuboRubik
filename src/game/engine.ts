@@ -68,7 +68,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 0.98;
+const SPACING = 1.01;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
 const BODY_SIZE = 0.9;
@@ -152,6 +152,7 @@ export class CubeEngine {
   private readonly tmpN = new Vector3();
   private readonly tmpQ = new Quaternion();
   private readonly screen = new Vector2();
+  public onStateChange: (() => void) | null = null;
 
   phase: Phase = "ready";
 
@@ -218,7 +219,7 @@ export class CubeEngine {
   private reduced: boolean;
   private hapticsEnabled = true; // <-- NUEVO
   private keyLight: PointLight | null = null; // <-- NUEVO: Referencia para sombras
-  
+
   constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
     this.camera = opts.camera;
     this.dom = opts.dom;
@@ -475,15 +476,17 @@ export class CubeEngine {
   }
 
   private declareWin() {
-  this.phase = "won";
-  this.sfx.win();
-  
-  // NUEVO: Vibración secuencial de victoria
-  if (this.hapticsEnabled && typeof navigator !== "undefined" && navigator.vibrate) {
-    navigator.vibrate([150, 80, 150, 80, 300]);
-  }
+    this.phase = "won";
+    this.sfx.win();
 
-  this.hooks.onPhase(this.phase);
+    // NUEVO: Vibración secuencial de victoria
+    if (this.hapticsEnabled && typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate([150, 80, 150, 80, 300]);
+    }
+
+    this.hooks.onPhase(this.phase);
+    // NUEVO: Avisar al exterior
+    if (this.onStateChange) this.onStateChange();
   }
 
   private enqueueQuarters(
@@ -605,6 +608,9 @@ export class CubeEngine {
     if (this.phase === "playing" && anim.user && anim.quarters !== 0 && isSolved(this.pieces)) {
       this.declareWin();
     }
+
+    // NUEVO: Avisar al exterior que el estado ha cambiado
+    if (this.onStateChange) this.onStateChange();
   }
 
   private beginSlice(axis: Axis, layer: Layer) {
@@ -995,7 +1001,7 @@ export class CubeEngine {
     // 2. NÚCLEO NEGRO CENTRAL
     // Un cubo grande que ocupa el espacio interior.
     // Su tamaño es ligeramente menor que el cubo total para que quepa.
-    const coreGeo = new BoxGeometry(1.8, 1.8, 1.8); 
+    const coreGeo = new BoxGeometry(1.8, 1.8, 1.8);
     const core = new Mesh(coreGeo, plastic);
     this.geos.push(coreGeo);
     this.cubeRoot.add(core);
@@ -1023,8 +1029,8 @@ export class CubeEngine {
         // SOLO el sticker con relieve (sin cuerpo negro individual)
         const sticker = new Mesh(gan.sticker[kind], mat);
         sticker.userData.stickerColor = color;
-        sticker.position.z = 0; 
-        
+        sticker.position.z = 0;
+
         // Orientación base de la cara
         const offset = 0.94 / 2;
         if (axis === 0) {
@@ -1052,72 +1058,72 @@ export class CubeEngine {
   }
 
   public setHaptics(enabled: boolean) {
-  this.hapticsEnabled = enabled;
-}
-
-public updateShadowQuality(quality: "low" | "medium" | "high") {
-  if (!this.keyLight) return;
-  
-  const size = quality === "high" ? 2048 : quality === "medium" ? 1024 : 512;
-  
-  // Si la luz ya tiene un mapa de sombras, Three.js no permite cambiar el tamaño fácilmente sin recrearlo.
-  // Pero para mantenerlo simple, solo ajustamos si es posible.
-  if (this.keyLight.shadow.map) {
-    this.keyLight.shadow.map.setSize(size, size);
-    this.keyLight.shadow.map.dispose();
-    this.keyLight.shadow.map = null; 
+    this.hapticsEnabled = enabled;
   }
-  // Forzamos la actualización
-  this.keyLight.shadow.mapSize.set(size, size);
-  this.keyLight.shadow.needsUpdate = true;
-}
 
-public setCustomColors(colors: Record<string, string>) {
-  for (const piece of this.pieces) {
-    piece.mesh.children.forEach((child) => {
-      if (child instanceof Group) {
-        child.children.forEach((meshPart) => {
-          if (meshPart instanceof Mesh && meshPart.userData.stickerColor) {
-            const colorId = meshPart.userData.stickerColor;
-            const newHex = colors[colorId];
-            if (newHex && meshPart.material instanceof MeshPhysicalMaterial) {
-              meshPart.material.color.set(newHex);
-              meshPart.material.emissive.set(newHex);
-              meshPart.material.emissiveIntensity = 0.05;
+  public updateShadowQuality(quality: "low" | "medium" | "high") {
+    if (!this.keyLight) return;
+
+    const size = quality === "high" ? 2048 : quality === "medium" ? 1024 : 512;
+
+    // Si la luz ya tiene un mapa de sombras, Three.js no permite cambiar el tamaño fácilmente sin recrearlo.
+    // Pero para mantenerlo simple, solo ajustamos si es posible.
+    if (this.keyLight.shadow.map) {
+      this.keyLight.shadow.map.setSize(size, size);
+      this.keyLight.shadow.map.dispose();
+      this.keyLight.shadow.map = null;
+    }
+    // Forzamos la actualización
+    this.keyLight.shadow.mapSize.set(size, size);
+    this.keyLight.shadow.needsUpdate = true;
+  }
+
+  public setCustomColors(colors: Record<string, string>) {
+    for (const piece of this.pieces) {
+      piece.mesh.children.forEach((child) => {
+        if (child instanceof Group) {
+          child.children.forEach((meshPart) => {
+            if (meshPart instanceof Mesh && meshPart.userData.stickerColor) {
+              const colorId = meshPart.userData.stickerColor;
+              const newHex = colors[colorId];
+              if (newHex && meshPart.material instanceof MeshPhysicalMaterial) {
+                meshPart.material.color.set(newHex);
+                meshPart.material.emissive.set(newHex);
+                meshPart.material.emissiveIntensity = 0.05;
+              }
             }
-          }
-        });
-      }
-    });
+          });
+        }
+      });
+    }
   }
-}
 
   private buildLights(scene: Scene) {
-  const amb = new AmbientLight("#ffffff", 0.5);
-  const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
+    const amb = new AmbientLight("#ffffff", 0.5);
+    const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
 
-  const key = new PointLight("#ffffff", 45, 50);
-  key.position.set(0, 10, 0);
-  
-  // NUEVO: Configuración de sombras para la luz principal
-  key.castShadow = true;
-  key.shadow.mapSize.width = 1024; // Calidad media por defecto
-  key.shadow.mapSize.height = 1024;
-  key.shadow.bias = -0.001;
-  this.keyLight = key; // Guardamos la referencia
+    const key = new PointLight("#ffffff", 45, 50);
+    key.position.set(0, 10, 0);
 
-  const fill = new DirectionalLight("#9fdfff", 0.48);
-  fill.position.set(-7, 3.2, -4);
+    // NUEVO: Configuración de sombras para la luz principal
+    key.castShadow = true;
+    key.shadow.mapSize.width = 1024; // Calidad media por defecto
+    key.shadow.mapSize.height = 1024;
+    key.shadow.bias = -0.001;
+    this.keyLight = key; // Guardamos la referencia
 
-  const rim = new DirectionalLight("#ffb25a", 0.32);
-  rim.position.set(-2, 4, -8);
+    const fill = new DirectionalLight("#9fdfff", 0.48);
+    fill.position.set(-7, 3.2, -4);
 
-  for (const obj of [hemi, amb, key, fill, rim]) {
-    scene.add(obj);
-    this.owned.push(obj);
+    const rim = new DirectionalLight("#ffb25a", 0.32);
+    rim.position.set(-2, 4, -8);
+
+    for (const obj of [hemi, amb, key, fill, rim]) {
+      scene.add(obj);
+      this.owned.push(obj);
+    }
   }
-}
-  
+
   private publishDebug() {
     window.__cubix = {
       phase: () => this.phase,
@@ -1191,6 +1197,33 @@ public setCustomColors(colors: Record<string, string>) {
           });
         }
       });
+    }
+  }
+
+  public getSaveState() {
+    if (this.phase !== "playing" && this.phase !== "won") return null;
+    return {
+      history: this.history,
+      phase: this.phase,
+    };
+  }
+
+  public loadSaveState(state: { history: any[]; phase: "playing" | "won" }) {
+    if (!state || !state.history) return;
+
+    // Aplicamos los movimientos instantáneamente sin animación
+    for (const move of state.history) {
+      applyQuarters(this.pieces, move.axis, move.layer, move.quarters);
+    }
+
+    this.history = state.history;
+    this.phase = state.phase;
+
+    this.syncAll();
+    this.hooks.onPhase(this.phase);
+
+    if (this.phase === "won") {
+      this.lookY = -1.15;
     }
   }
 }

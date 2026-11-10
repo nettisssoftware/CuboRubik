@@ -22,7 +22,7 @@ function Home() {
   phaseRef.current = phase;
 
   // Configuración del usuario
-  const { settings } = useSettings();
+  const { settings, updateSetting } = useSettings();
 
   // 1. Cargar el componente 3D de forma dinámica
   useEffect(() => {
@@ -62,6 +62,12 @@ function Home() {
     }
   };
 
+  const handleSaveState = (state: any) => {
+  if (settings.saveProgress) {
+    updateSetting("savedGame", state);
+  }
+};
+
   useEffect(() => {
     if (!armed) return;
     const id = window.setTimeout(() => {
@@ -100,6 +106,7 @@ function Home() {
         {Stage ? (
           <Stage
             settings={settings} // <-- PASAMOS LA CONFIGURACIÓN
+            onSaveState={handleSaveState}
             onPhase={setPhase}
             onTap={onTap}
             onFirstMove={() => setHint(false)}
