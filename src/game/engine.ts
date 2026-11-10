@@ -158,7 +158,8 @@ export class CubeEngine {
 
   phase: Phase = "ready";
 
-  private activeTheme: "classic" | "neon" | "halloween" | "pastel" = "classic";
+  private currentTheme: string = "classic";
+  private currentCustomColors: Record<string, string> | null = null;
 
   private queue: Move[] = [];
   private anim: Anim | null = null;
@@ -626,10 +627,6 @@ export class CubeEngine {
     }
 
     this.syncAll();
-
-    // Reaplicar el último tema seleccionado por el usuario.
-    this.setTheme(this.activeTheme);
-
     this.anim = null;
 
     const more = this.pump();
@@ -985,6 +982,13 @@ export class CubeEngine {
 
       quatFromOri(piece.ori, piece.mesh.quaternion, this.tmpA, this.tmpB, this.tmpC);
     }
+
+    // Re-aplicar el tema o los colores personalizados después de mover las piezas
+    if (this.currentCustomColors) {
+      this.applyCustomColors(this.currentCustomColors);
+    } else {
+      this.applyTheme(this.currentTheme as any);
+    }
   }
 
   private pick(clientX: number, clientY: number): { piece: Piece; point: Vector3 } | null {
@@ -1123,30 +1127,6 @@ export class CubeEngine {
     this.keyLight.shadow.needsUpdate = true;
   }
 
-  public setCustomColors(colors: Record<string, string>) {
-    for (const piece of this.pieces) {
-      piece.mesh.children.forEach((child) => {
-        if (child instanceof Group) {
-          child.children.forEach((meshPart) => {
-            if (meshPart instanceof Mesh && meshPart.userData.stickerColor) {
-              const colorId = meshPart.userData.stickerColor;
-              const newHex = colors[colorId];
-              if (newHex && meshPart.material instanceof MeshPhysicalMaterial) {
-                // Escudo para proteger el logo
-                if (meshPart.material.map) {
-                  return;
-                }
-                meshPart.material.color.set(newHex);
-                meshPart.material.emissive.set(newHex);
-                meshPart.material.emissiveIntensity = 0.05;
-              }
-            }
-          });
-        }
-      });
-    }
-  }
-
   private buildLights(scene: Scene) {
     const amb = new AmbientLight("#ffffff", 0.5);
     const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
@@ -1185,8 +1165,30 @@ export class CubeEngine {
     this.sens = val;
   }
 
-  public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
-    this.activeTheme = theme;
+  // Función interna para pintar los colores personalizados
+  private applyCustomColors(colors: Record<string, string>) {
+    for (const piece of this.pieces) {
+      piece.mesh.children.forEach((child) => {
+        if (child instanceof Group) {
+          child.children.forEach((meshPart) => {
+            if (meshPart instanceof Mesh && meshPart.userData.stickerColor) {
+              const colorId = meshPart.userData.stickerColor;
+              const newHex = colors[colorId];
+              if (newHex && meshPart.material instanceof MeshPhysicalMaterial) {
+                if (meshPart.material.map) return; // Proteger logo
+                meshPart.material.color.set(newHex);
+                meshPart.material.emissive.set(newHex);
+                meshPart.material.emissiveIntensity = 0.05;
+              }
+            }
+          });
+        }
+      });
+    }
+  }
+
+  // Función interna para pintar los temas predefinidos
+  private applyTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
     const palettes = {
       classic: {
         R: "#cd0009",
@@ -1196,14 +1198,7 @@ export class CubeEngine {
         G: "#009b48",
         B: "#0057d9",
       },
-      neon: {
-        R: "#ff003c",
-        O: "#ff7b00",
-        W: "#f0f0f0",
-        Y: "#ffee00",
-        G: "#00ff41",
-        B: "#00b3ff",
-      },
+      neon: { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
       pastel: {
         R: "#ff5353",
         O: "#ffa502",
@@ -1221,7 +1216,6 @@ export class CubeEngine {
         B: "#cc00b3",
       },
     };
-
     const colors = palettes[theme];
 
     for (const piece of this.pieces) {
@@ -1232,9 +1226,7 @@ export class CubeEngine {
               const colorId = meshPart.userData.stickerColor;
               if (colorId && colors[colorId as keyof typeof colors]) {
                 const newHex = colors[colorId as keyof typeof colors];
-                if (meshPart.material.map) {
-                  return;
-                }
+                if (meshPart.material.map) return; // Proteger logo
 
                 if (meshPart.material instanceof MeshPhysicalMaterial) {
                   meshPart.material.color.set(newHex);
@@ -1251,6 +1243,18 @@ export class CubeEngine {
         }
       });
     }
+  }
+
+  public setCustomColors(colors: Record<string, string>) {
+    this.currentTheme = "custom";
+    this.currentCustomColors = colors;
+    this.applyCustomColors(colors);
+  }
+
+  public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
+    this.currentTheme = theme;
+    this.currentCustomColors = null;
+    this.applyTheme(theme);
   }
 
   public getSaveState() {
