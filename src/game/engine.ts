@@ -68,7 +68,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 1.01;
+const SPACING = 1.02;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
 const BODY_SIZE = 0.9;
@@ -1140,7 +1140,7 @@ export class CubeEngine {
   public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
     const palettes = {
       classic: {
-        R: "#de1b24",
+        R: "#fa000c",
         O: "#ff6a00",
         W: "#f7f7f2",
         Y: "#ffd000",
@@ -1156,12 +1156,12 @@ export class CubeEngine {
         B: "#00b3ff",
       },
       pastel: {
-        R: "#ff6b6b",
+        R: "#ff5353",
         O: "#ffa502",
         W: "#f1f2f6",
         Y: "#ffeda0",
-        G: "#2ed573",
-        B: "#70a1ff",
+        G: "#33ff87",
+        B: "#74d1ff",
       },
       halloween: {
         R: "#ff3300",
@@ -1169,7 +1169,7 @@ export class CubeEngine {
         W: "#e0e0e0",
         Y: "#ffcc00",
         G: "#00cc44",
-        B: "#6600cc",
+        B: "#cc00b3",
       },
     };
 
