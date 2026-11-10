@@ -68,7 +68,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 1.02;
+const SPACING = 1.03;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
 const BODY_SIZE = 0.9;
@@ -1159,7 +1159,7 @@ export class CubeEngine {
         R: "#ff5353",
         O: "#ffa502",
         W: "#f1f2f6",
-        Y: "#ffeda0",
+        Y: "#ffe05e",
         G: "#33ff87",
         B: "#74d1ff",
       },

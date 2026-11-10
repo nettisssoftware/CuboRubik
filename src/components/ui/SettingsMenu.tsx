@@ -187,7 +187,7 @@ export function SettingsMenu({ onChange }: Props) {
                 </div>
                 <div className="setting-row">
                   <button className="danger-text-btn" onClick={() => {
-                    if (window.confirm("¿Seguro que quieres borrar todo tu progreso y ajustes? Esta acción no se puede deshacer.")) {
+                    if (window.confirm("¿Seguro que quieres borrar todo tu progreso y ajustes? Esta acción no se puede deshacer, recarga la página para ver los cambios.")) {
                       clearAllData();
                       onChange(useSettings().settings); // Forzamos actualización del padre
                       window.location.reload(); // Recarga limpia para asegurar el reset
