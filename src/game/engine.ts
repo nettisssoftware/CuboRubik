@@ -160,7 +160,7 @@ export class CubeEngine {
 
   private queue: Move[] = [];
   private anim: Anim | null = null;
-  
+
   // Textura del logo protegida
   private readonly logoTexture: Texture;
 
@@ -237,9 +237,9 @@ export class CubeEngine {
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext("2d")!;
-    
+
     // Fondo blanco inmediato para que la pieza nunca sea invisible
-    ctx.fillStyle = "#f7f7f2"; 
+    ctx.fillStyle = "#f7f7f2";
     ctx.fillRect(0, 0, 512, 512);
 
     this.logoTexture = new CanvasTexture(canvas);
@@ -250,15 +250,14 @@ export class CubeEngine {
     const img = new Image();
     img.src = "/gan-logo.png";
     img.onload = () => {
-      const logoSize = 512 * 0.6; // 60% del tamaño
+      const logoSize = 512 * 0.6;
       const offset = (512 - logoSize) / 2;
-      ctx.drawImage(img, offset, offset, logoSize, logoSize);
-      
-      // Forzamos la actualización de la textura en la GPU
+      ctx.drawImage(img, 0, 0, 512, 512);
+
       this.logoTexture.needsUpdate = true;
-      
-      // Obligamos a Three.js a redibujar los materiales del logo
-      this.mats.forEach(m => {
+
+      // ESTO ES LO QUE FALTA:
+      this.mats.forEach((m) => {
         if (m instanceof MeshPhysicalMaterial && m.map === this.logoTexture) {
           m.needsUpdate = true;
         }
@@ -1052,7 +1051,6 @@ export class CubeEngine {
 
         if (color === "W" && kind === "center") {
           mat = new MeshPhysicalMaterial({
-            color: "#f7f7f2",
             map: this.logoTexture,
             roughness: 0.2,
             metalness: 0.0,
@@ -1063,7 +1061,7 @@ export class CubeEngine {
           const scale = 1.666;
           this.logoTexture.repeat.set(scale, scale);
           this.logoTexture.offset.set((1 - scale) / 2, (1 - scale) / 2);
-          
+
           // Añadimos el material a la lista para actualizarlo luego si es necesario
           this.mats.push(mat);
         }
