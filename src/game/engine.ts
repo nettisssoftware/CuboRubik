@@ -243,26 +243,34 @@ export class CubeEngine {
     ctx.fillRect(0, 0, 512, 512);
 
     this.logoTexture = new CanvasTexture(canvas);
-    this.logoTexture.center.set(0.5, 0.5);
+
+    // Normalizar las coordenadas UV de la pieza central.
+    // La geometría tiene un tamaño de 0.94 × 0.94.
+    this.logoTexture.repeat.set(1 / 0.94, 1 / 0.94);
+    this.logoTexture.offset.set(0.5, 0.5);
+
     this.logoTexture.needsUpdate = true;
 
     // 2. CARGA ASÍNCRONA DEL LOGO
     const img = new Image();
-    img.src = "/gan-logo.png";
+
     img.onload = () => {
+      // El logo ocupará el 60 % de la superficie.
       const logoSize = 512 * 0.6;
       const offset = (512 - logoSize) / 2;
-      ctx.drawImage(img, 0, 0, 512, 512);
 
+      // Dibujar el PNG centrado, conservando su transparencia.
+      ctx.drawImage(img, offset, offset, logoSize, logoSize);
+
+      // Actualizar la textura después de cargar la imagen.
       this.logoTexture.needsUpdate = true;
-
-      // ESTO ES LO QUE FALTA:
-      this.mats.forEach((m) => {
-        if (m instanceof MeshPhysicalMaterial && m.map === this.logoTexture) {
-          m.needsUpdate = true;
-        }
-      });
     };
+
+    img.onerror = () => {
+      console.error("No se pudo cargar /gan-logo.png");
+    };
+
+    img.src = "/gan-logo.png";
 
     this.pieces = this.buildPieces();
     this.buildLights(opts.scene);
@@ -1058,11 +1066,7 @@ export class CubeEngine {
             clearcoatRoughness: 0.5,
           });
 
-          const scale = 1.666;
-          this.logoTexture.repeat.set(scale, scale);
-          this.logoTexture.offset.set((1 - scale) / 2, (1 - scale) / 2);
-
-          // Añadimos el material a la lista para actualizarlo luego si es necesario
+          // Registrar el material para su gestión.
           this.mats.push(mat);
         }
 
