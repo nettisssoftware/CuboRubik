@@ -1,9 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Trophy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Confetti } from "@/game/Confetti";
 import type { CubeApi, Phase } from "@/game/CubeStage";
-// Importamos el menú, el hook de settings y el gestor de audio
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { useSettings } from "@/components/ui/useSettings";
 import { audioManager } from "@/game/audio-manager";
@@ -24,7 +21,7 @@ function Home() {
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
-  // --- NUEVO: Configuración del usuario ---
+  // Configuración del usuario
   const { settings } = useSettings();
 
   // 1. Cargar el componente 3D de forma dinámica
@@ -45,15 +42,19 @@ function Home() {
     }
   }, [settings.musicEnabled]);
 
-  // 3. Función que recibe los cambios del menú
+  // 3. Función que recibe los cambios del menú en tiempo real
   const handleSettingsChange = (newSettings: typeof settings) => {
-    // Aplicamos cambios en tiempo real si el cubo ya está cargado
     if (api.current) {
       api.current.setSensitivity(newSettings.cameraSensitivity);
-      api.current.setTheme(newSettings.theme);
+      api.current.setHaptics(newSettings.hapticsEnabled);
+      
+      if (newSettings.theme === "custom") {
+        api.current.setCustomColors(newSettings.customColors);
+      } else {
+        api.current.setTheme(newSettings.theme);
+      }
     }
     
-    // Control de música
     if (newSettings.musicEnabled) {
       audioManager.play();
     } else {
@@ -70,14 +71,23 @@ function Home() {
     return () => window.clearTimeout(id);
   }, [armed]);
 
+  // 4. Lógica del doble toque (Iniciar y Reiniciar)
   const onTap = () => {
-    if (phaseRef.current !== "ready") return;
+    // Ignoramos toques si el cubo se está mezclando o el jugador está jugando
+    if (phaseRef.current === "scrambling" || phaseRef.current === "playing") return;
+
     const now = performance.now();
     if (now - lastTap.current < 420) {
       lastTap.current = 0;
       setArmed(false);
-      if (api.current) api.current.start();
-      else pendingStart.current = true;
+      
+      // Si está listo, empezamos. Si ya ganó, reiniciamos.
+      if (phaseRef.current === "ready") {
+        if (api.current) api.current.start();
+        else pendingStart.current = true;
+      } else if (phaseRef.current === "won") {
+        if (api.current) api.current.replay();
+      }
       return;
     }
     lastTap.current = now;
@@ -89,15 +99,22 @@ function Home() {
       <div className="stage">
         {Stage ? (
           <Stage
+            settings={settings} // <-- PASAMOS LA CONFIGURACIÓN
             onPhase={setPhase}
             onTap={onTap}
             onFirstMove={() => setHint(false)}
             onApi={(next) => {
               api.current = next;
               
-              // 4. Aplicamos la configuración guardada en cuanto la API esté lista
+              // Aplicamos la configuración guardada en cuanto la API esté lista
               next.setSensitivity(settings.cameraSensitivity);
-              next.setTheme(settings.theme);
+              next.setHaptics(settings.hapticsEnabled);
+              
+              if (settings.theme === "custom") {
+                next.setCustomColors(settings.customColors);
+              } else {
+                next.setTheme(settings.theme);
+              }
 
               if (pendingStart.current) {
                 pendingStart.current = false;
@@ -109,7 +126,6 @@ function Home() {
       </div>
       <div className="vignette" />
       
-      {/* 5. Añadimos el botón de engranaje y el menú flotante */}
       <SettingsMenu onChange={handleSettingsChange} />
 
       <header className="hud">
@@ -132,38 +148,20 @@ function Home() {
                 : "Arma las seis caras"}
             </p>
           ) : null}
+          
+          {/* NUEVO HUD DE VICTORIA */}
+          {phase === "won" ? (
+            <>
+              <p className="prompt" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+                ¡Cubo resuelto!
+              </p>
+              <p className="status">
+                {armed ? "Una vez más para mezclar..." : "Toca dos veces para jugar de nuevo"}
+              </p>
+            </>
+          ) : null}
         </div>
       </header>
-      {phase === "won" ? <Victory onReplay={() => api.current?.replay()} /> : null}
     </main>
-  );
-}
-
-function Victory({ onReplay }: { onReplay: () => void }) {
-  const born = useRef(0);
-  if (born.current === 0) born.current = performance.now();
-
-  return (
-    <div
-      className="victory"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Cubo resuelto. Toca para volver a jugar."
-      onPointerUp={() => {
-        if (performance.now() - born.current < 500) return;
-        onReplay();
-      }}
-    >
-      <Confetti />
-      <div className="victory-card">
-        <div className="trophy-ring">
-          <Trophy strokeWidth={1.75} />
-        </div>
-        <p className="kicker">Victoria</p>
-        <h2>Cubo resuelto</h2>
-        <p className="victory-copy">Las seis caras coinciden.</p>
-        <p className="cta">Toca para volver a jugar</p>
-      </div>
-    </div>
   );
 }

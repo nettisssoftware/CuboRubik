@@ -1,13 +1,19 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
-import { NoToneMapping, type PerspectiveCamera as ThreeCamera } from "three";
+import { 
+  NoToneMapping, 
+  ACESFilmicToneMapping, 
+  type PerspectiveCamera as ThreeCamera 
+} from "three";
 import { CubeEngine, type CubeApi, type Phase } from "./engine";
+import type { GameSettings } from "@/components/ui/useSettings";
 
 type Props = {
   onPhase: (phase: Phase) => void;
   onTap: () => void;
   onFirstMove: () => void;
   onApi: (api: CubeApi) => void;
+  settings: GameSettings; // <-- NUEVO
 };
 
 function Scene(props: Props) {
@@ -28,12 +34,25 @@ function Scene(props: Props) {
       },
     });
     engineRef.current = engine;
+    
+    // API EXPUESTA AL PADRE
     propsRef.current.onApi({
       start: () => engine.start(),
       replay: () => engine.replay(),
       setSensitivity: (val) => engine.setSensitivity(val),
       setTheme: (theme) => engine.setTheme(theme),
+      setCustomColors: (colors) => engine.setCustomColors(colors), // <-- NUEVO
+      setHaptics: (enabled) => engine.setHaptics(enabled),          // <-- NUEVO
     });
+
+    // Aplicar configuración inicial al motor
+    engine.setSensitivity(props.settings.cameraSensitivity);
+    if (props.settings.theme === "custom") {
+      engine.setCustomColors(props.settings.customColors);
+    } else {
+      engine.setTheme(props.settings.theme);
+    }
+    engine.setHaptics(props.settings.hapticsEnabled);
 
     const el = gl.domElement;
     const down = (e: PointerEvent) => engine.onPointerDown(e);
@@ -65,7 +84,26 @@ function Scene(props: Props) {
       engine.dispose();
       engineRef.current = null;
     };
-  }, [gl, camera, scene]);
+  }, [gl, camera, scene]); // Solo se inicializa una vez
+
+  // NUEVO: Efecto para actualizar el motor cuando cambian los ajustes
+  useEffect(() => {
+    if (!engineRef.current) return;
+    const engine = engineRef.current;
+    
+    engine.setSensitivity(props.settings.cameraSensitivity);
+    engine.setHaptics(props.settings.hapticsEnabled);
+    
+    if (props.settings.theme === "custom") {
+      engine.setCustomColors(props.settings.customColors);
+    } else {
+      engine.setTheme(props.settings.theme);
+    }
+
+    // Actualizar calidad de sombras
+    engine.updateShadowQuality(props.settings.shadowQuality);
+    
+  }, [props.settings]);
 
   useFrame((_, dt) => {
     const engine = engineRef.current;
@@ -78,16 +116,20 @@ function Scene(props: Props) {
 }
 
 export function CubeStage(props: Props) {
+  // Lógica de DPR dinámico
+  const dpr: [number, number] = props.settings.batterySaver ? [1, 1] : [1, 3];
+  
   return (
     <Canvas
-      shadows
-      dpr={[1,2]}
+      shadows={props.settings.shadowQuality !== "low"} // Desactiva sombras si es "low"
+      dpr={dpr}
       camera={{ fov: 32, near: 1, far: 50, position: [4, 3.2, 10] }}
       gl={{
         antialias: true,
         alpha: true,
-        toneMapping: NoToneMapping,
-        powerPreference: "high-performance",
+        // Tone Mapping dinámico
+        toneMapping: props.settings.theme === "neon" ? ACESFilmicToneMapping : NoToneMapping,
+        powerPreference: props.settings.batterySaver ? "default" : "high-performance",
       }}
       onCreated={({ gl }) => {
         gl.setClearColor(0x000000, 0);
@@ -101,8 +143,10 @@ export function CubeStage(props: Props) {
 export type CubeApi = {
   start: () => void;
   replay: () => void;
-  setSensitivity: (val: number) => void; // <-- Añadido
-  setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void; // <-- Añadido
+  setSensitivity: (val: number) => void;
+  setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
+  setCustomColors: (colors: Record<string, string>) => void;
+  setHaptics: (enabled: boolean) => void;
 };
 
 export type { CubeApi, Phase };

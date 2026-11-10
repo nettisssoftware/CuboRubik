@@ -17,7 +17,7 @@ export type GanGeos = {
 
 const SIZE = 0.94; // Ancho total de la pieza (y del sticker)
 const DEPTH = 0.94; // Profundidad total de la pieza negra
-const R = 0.20; // Radio de las esquinas redondeadas
+const R = 0.23; // Radio de las esquinas redondeadas
 const SAG = 0.18; // Profundidad del "mordisco" cóncavo de las aristas
 
 type Pt = [number, number];
@@ -26,7 +26,7 @@ export function createGanGeometries(): GanGeos {
   // 1. Generar las siluetas 2D
   const loopCenter = roundRect(SIZE, R, R, R, R);
   const loopEdge = edgeBulge(SIZE, SAG);
-  const CORNER_RADIUS = 0.05; // Radio de 5 para el borde radial de las 8 esquinas (ajusta a tu gusto)
+  const CORNER_RADIUS = 0.08; // Radio de 5 para el borde radial de las 8 esquinas (ajusta a tu gusto)
   const loopCorner = roundRect(SIZE, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS);
 
   // 2. Crear las piezas negras (extruidas en 3D)
@@ -91,27 +91,59 @@ function roundRect(a: number, rTL: number, rTR: number, rBR: number, rBL: number
 }
 
 // Cuadrado con un mordisco cóncavo en el lado que mira hacia el centro (-Y local)
-function edgeBulge(a: number, sag: number): Pt[] {
+function edgeBulge(a: number, sag: number, cornerRadius: number = 0.08): Pt[] {
   const half = a / 2;
   const loop: Pt[] = [];
   const Rarc = (half * half + sag * sag) / (2 * sag);
-  const cy = -half + Rarc; // Centro del arco cóncavo
+  const cy = -half + Rarc; // Centro del arco cóncavo (mordisco)
   
-  // Arco cóncavo (desde la izquierda hasta la derecha)
+  // --- 1. EL MORDISCO CÓNCAVO (Sin cambios) ---
   const left = Math.atan2(sag - Rarc, -half);
   const right = Math.atan2(sag - Rarc, half);
   const steps = 36;
+  
+  // Calculamos dónde termina el mordisco a la derecha
+  const endX = Math.cos(right) * Rarc;
+  const endY = cy + Math.sin(right) * Rarc;
+
+  // --- 2. CÁLCULO DEL PUNTO DE TANGENCIA PARA LA ESQUINA INFERIOR DERECHA ---
+  // Para que sea tangente, el centro del arco de redondeo debe estar a una distancia (Rarc - cornerRadius) del centro del mordisco.
+  // Y su distancia al borde recto derecho (x = half) debe ser cornerRadius.
+  
+  // Centro del arco de redondeo:
+  const crX = half - cornerRadius;
+  const crY = cy + Math.sqrt(Math.pow(Rarc - cornerRadius, 2) - Math.pow(crX, 2));
+  
+  // Ángulo del punto de tangencia (desde el centro del mordisco hacia el centro del redondeo)
+  const tangentAngle = Math.atan2(crY - cy, crX);
+
+  // --- 3. DIBUJAR EL MORDISCO HASTA EL PUNTO DE TANGENCIA ---
+  // En lugar de dibujar el mordisco hasta el final, lo cortamos justo donde empieza la tangencia.
   for (let i = 0; i <= steps; i++) {
     const ang = left + ((right - left) * i) / steps;
-    push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
+    if (ang <= tangentAngle) {
+      push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
+    }
   }
-  
-  // Bordes rectos exteriores
-  push(loop, half, half);
-  push(loop, -half, half);
-  
+
+  // --- 4. DIBUJAR LA ESQUINA INFERIOR DERECHA (Redondeada y tangente) ---
+  arc(loop, crX, crY, cornerRadius, tangentAngle, 0, 8);
+  // (El arco va desde el ángulo de tangencia hasta 0 grados, que es el borde recto derecho)
+
+  // --- 5. BORDES Y ESQUINAS SUPERIORES (Redondeadas normal) ---
+  push(loop, half, half - cornerRadius); // Borde derecho
+  arc(loop, half - cornerRadius, half - cornerRadius, cornerRadius, 0, Math.PI / 2, 8); // Esquina sup derecha
+  push(loop, -half + cornerRadius, half); // Borde superior
+  arc(loop, -half + cornerRadius, half - cornerRadius, cornerRadius, Math.PI / 2, Math.PI, 8); // Esquina sup izquierda
+  push(loop, -half, -half + sag + cornerRadius); // Borde izquierdo
+
+  // --- 6. ESQUINA INFERIOR IZQUIERDA (Simétrica, tangente) ---
+  // Por simetría, el centro del arco izquierdo es (-crX, crY)
+  arc(loop, -crX, crY, cornerRadius, Math.PI, Math.PI - tangentAngle, 8);
+
   return loop;
 }
+
 
 // --- CONVERSIÓN A GEOMETRÍA 3D ---
 
@@ -142,7 +174,7 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
     depth: 0.09,             // 1. Más grosor (relieve negativo profundo)
     bevelEnabled: true,      // 2. Biselado activado
     bevelThickness: 0.04,   // 3. Bisel sutil
-    bevelSize: 0.04,
+    bevelSize: 0.08,
     bevelSegments: 2,
     curveSegments: 4,
   });

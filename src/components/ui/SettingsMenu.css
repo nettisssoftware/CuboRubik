@@ -20,28 +20,28 @@
 
 .settings-gear-btn:hover {
   background: rgba(0, 0, 0, 0.8);
-  transform: rotate(45deg);
+  transform: rotate(90deg);
 }
 
 /* Overlay oscuro */
 .settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   z-index: 999;
   display: flex;
-  justify-content: flex-end; /* Panel a la derecha */
+  justify-content: flex-end;
 }
 
 /* Panel deslizante */
 .settings-panel {
   width: 100%;
-  max-width: 380px;
+  max-width: 420px;
   height: 100%;
-  background: #121212;
-  color: #fff;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.8);
+  background: #f2f2f2; /* Fondo gris claro */
+  color: #111;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
   animation: slideIn 0.3s ease-out;
   display: flex;
   flex-direction: column;
@@ -56,58 +56,199 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #333;
+  padding: 16px 20px;
+  background: #f2f2f2;
 }
 
 .settings-header h2 {
   margin: 0;
-  font-size: 1.2rem;
-  font-family: monospace;
-  letter-spacing: 1px;
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 
-.close-btn {
+.back-btn {
   background: none;
   border: none;
-  color: #888;
-  font-size: 1.2rem;
+  color: #111;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
 }
 
 .settings-content {
-  padding: 20px;
+  padding: 0 20px 40px 20px;
   overflow-y: auto;
 }
 
-.settings-content h3 {
-  font-size: 0.85rem;
+/* Títulos de sección (gris sobre fondo claro) */
+.section-title {
+  font-size: 0.8rem;
   color: #888;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-top: 24px;
-  margin-bottom: 12px;
+  margin: 24px 0 8px 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* Cajas blancas de ajustes */
+.settings-group {
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .setting-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
 }
 
 .setting-row.column {
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* Switch Personalizado (Estilo iOS) */
+.row-label {
+  font-weight: 500;
+  color: #111;
+}
+
+.row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.helper-text {
+  margin: 4px 0 0 0;
+  font-size: 0.75rem;
+  color: #888;
+  line-height: 1.3;
+}
+
+/* Grid de Temas */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.theme-btn {
+  background: #f9f9f9;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-btn.active {
+  border-color: #111;
+  background: #fff;
+}
+
+.theme-preview {
+  display: flex;
+  gap: 4px;
+}
+
+.theme-preview span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.theme-name {
+  font-size: 0.8rem;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Color Picker (Cubitos) */
+.color-picker-grid {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.color-cube-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.color-cube {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  position: relative;
+  cursor: pointer;
+  box-shadow: inset 0 2px 5px rgba(255,255,255,0.3), 0 2px 5px rgba(0,0,0,0.1);
+  border: 2px solid rgba(0,0,0,0.1);
+}
+
+.color-cube input[type="color"] {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.color-cube.locked {
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-label {
+  font-size: 0.65rem;
+  color: #888;
+  font-weight: 600;
+}
+
+/* Select personalizado */
+.custom-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: #f9f9f9;
+  color: #111;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+/* Switch estilo iOS */
 .switch {
   position: relative;
   display: inline-block;
-  width: 46px;
-  height: 24px;
+  width: 50px;
+  height: 30px;
+  flex-shrink: 0;
 }
 
 .switch input {
@@ -120,42 +261,71 @@
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #333;
-  transition: .4s;
-  border-radius: 24px;
+  background-color: #e5e5ea;
+  transition: .3s;
+  border-radius: 30px;
 }
 
 .slider.round:before {
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
+  height: 26px;
+  width: 26px;
+  left: 2px;
+  bottom: 2px;
   background-color: white;
-  transition: .4s;
+  transition: .3s;
   border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 input:checked + .slider.round {
-  background-color: #7dd37a;
+  background-color: #34c759; /* Verde iOS */
 }
 
 input:checked + .slider.round:before {
-  transform: translateX(22px);
+  transform: translateX(20px);
 }
 
-/* Selector y Slider */
-.theme-select {
-  background: #222;
-  color: white;
-  border: 1px solid #444;
-  padding: 8px;
-  border-radius: 6px;
-  outline: none;
+/* Slider */
+.value-badge {
+  background: #e5e5ea;
+  color: #111;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-family: monospace;
 }
 
 .slider-range {
   width: 100%;
-  accent-color: #7dd37a;
+  accent-color: #34c759;
+  height: 4px;
+  background: #e5e5ea;
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.slider-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+
+/* Botón de borrar progreso */
+.danger-text-btn {
+  background: none;
+  border: none;
+  color: #ff3b30; /* Rojo iOS */
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  width: 100%;
+  text-align: left;
 }

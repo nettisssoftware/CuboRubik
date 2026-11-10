@@ -41,6 +41,8 @@ export type CubeApi = {
   replay: () => void;
   setSensitivity: (val: number) => void;
   setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
+  setCustomColors: (colors: Record<string, string>) => void;
+  setHaptics: (enabled: boolean) => void;
 };
 
 type Hooks = {
@@ -66,7 +68,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 0.98;
+const SPACING = 1.00;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
 const BODY_SIZE = 0.9;
@@ -214,7 +216,9 @@ export class CubeEngine {
   } | null = null;
 
   private reduced: boolean;
-
+  private hapticsEnabled = true; // <-- NUEVO
+  private keyLight: PointLight | null = null; // <-- NUEVO: Referencia para sombras
+  
   constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
     this.camera = opts.camera;
     this.dom = opts.dom;
@@ -471,9 +475,15 @@ export class CubeEngine {
   }
 
   private declareWin() {
-    this.phase = "won";
-    this.sfx.win();
-    this.hooks.onPhase(this.phase);
+  this.phase = "won";
+  this.sfx.win();
+  
+  // NUEVO: Vibración secuencial de victoria
+  if (this.hapticsEnabled && typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate([150, 80, 150, 80, 300]);
+  }
+
+  this.hooks.onPhase(this.phase);
   }
 
   private enqueueQuarters(
@@ -1041,27 +1051,73 @@ export class CubeEngine {
     });
   }
 
-  private buildLights(scene: Scene) {
-    // Mantenemos tus luces originales que daban un tono más limpio
-    const amb = new AmbientLight("#ffffff", 0.5);
-    const hemi = new HemisphereLight("#ffffff", "#222222", 1.2); // Sube un poco la luz ambiental
+  public setHaptics(enabled: boolean) {
+  this.hapticsEnabled = enabled;
+}
 
-    // Tu PointLight original
-    const key = new PointLight("#ffffff", 45, 50);
-    key.position.set(0, 10, 0);
-
-    const fill = new DirectionalLight("#9fdfff", 0.48);
-    fill.position.set(-7, 3.2, -4);
-
-    const rim = new DirectionalLight("#ffb25a", 0.32);
-    rim.position.set(-2, 4, -8);
-
-    for (const obj of [hemi, amb, key, fill, rim]) {
-      scene.add(obj);
-      this.owned.push(obj);
-    }
+public updateShadowQuality(quality: "low" | "medium" | "high") {
+  if (!this.keyLight) return;
+  
+  const size = quality === "high" ? 2048 : quality === "medium" ? 1024 : 512;
+  
+  // Si la luz ya tiene un mapa de sombras, Three.js no permite cambiar el tamaño fácilmente sin recrearlo.
+  // Pero para mantenerlo simple, solo ajustamos si es posible.
+  if (this.keyLight.shadow.map) {
+    this.keyLight.shadow.map.setSize(size, size);
+    this.keyLight.shadow.map.dispose();
+    this.keyLight.shadow.map = null; 
   }
+  // Forzamos la actualización
+  this.keyLight.shadow.mapSize.set(size, size);
+  this.keyLight.shadow.needsUpdate = true;
+}
 
+public setCustomColors(colors: Record<string, string>) {
+  for (const piece of this.pieces) {
+    piece.mesh.children.forEach((child) => {
+      if (child instanceof Group) {
+        child.children.forEach((meshPart) => {
+          if (meshPart instanceof Mesh && meshPart.userData.stickerColor) {
+            const colorId = meshPart.userData.stickerColor;
+            const newHex = colors[colorId];
+            if (newHex && meshPart.material instanceof MeshPhysicalMaterial) {
+              meshPart.material.color.set(newHex);
+              meshPart.material.emissive.set(newHex);
+              meshPart.material.emissiveIntensity = 0.05;
+            }
+          }
+        });
+      }
+    });
+  }
+}
+
+  private buildLights(scene: Scene) {
+  const amb = new AmbientLight("#ffffff", 0.5);
+  const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
+
+  const key = new PointLight("#ffffff", 45, 50);
+  key.position.set(0, 10, 0);
+  
+  // NUEVO: Configuración de sombras para la luz principal
+  key.castShadow = true;
+  key.shadow.mapSize.width = 1024; // Calidad media por defecto
+  key.shadow.mapSize.height = 1024;
+  key.shadow.bias = -0.001;
+  this.keyLight = key; // Guardamos la referencia
+
+  const fill = new DirectionalLight("#9fdfff", 0.48);
+  fill.position.set(-7, 3.2, -4);
+
+  const rim = new DirectionalLight("#ffb25a", 0.32);
+  rim.position.set(-2, 4, -8);
+
+  for (const obj of [hemi, amb, key, fill, rim]) {
+    scene.add(obj);
+    this.owned.push(obj);
+  }
+}
+  
   private publishDebug() {
     window.__cubix = {
       phase: () => this.phase,
