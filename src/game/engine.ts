@@ -158,6 +158,8 @@ export class CubeEngine {
 
   phase: Phase = "ready";
 
+  private activeTheme: "classic" | "neon" | "halloween" | "pastel" = "classic";
+
   private queue: Move[] = [];
   private anim: Anim | null = null;
 
@@ -624,6 +626,10 @@ export class CubeEngine {
     }
 
     this.syncAll();
+
+    // Reaplicar el último tema seleccionado por el usuario.
+    this.setTheme(this.activeTheme);
+
     this.anim = null;
 
     const more = this.pump();
@@ -1180,12 +1186,13 @@ export class CubeEngine {
   }
 
   public setTheme(theme: "classic" | "neon" | "halloween" | "pastel") {
+    this.activeTheme = theme;
     const palettes = {
       classic: {
-        R: "#fa000c",
-        O: "#ff6a00",
+        R: "#cd0009",
+        O: "#bc4e00",
         W: "#f7f7f2",
-        Y: "#ffd000",
+        Y: "#e2b800",
         G: "#009b48",
         B: "#0057d9",
       },
