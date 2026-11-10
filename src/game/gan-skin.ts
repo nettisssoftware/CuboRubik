@@ -90,35 +90,24 @@ function roundRect(a: number, rTL: number, rTR: number, rBR: number, rBL: number
   return loop;
 }
 
-// Cuadrado con un mordisco cóncavo en el lado que mira hacia el centro (-Y local)
+
 function edgeBulge(a: number, sag: number, cornerRadius: number = 0.08): Pt[] {
   const half = a / 2;
   const loop: Pt[] = [];
   const Rarc = (half * half + sag * sag) / (2 * sag);
   const cy = -half + Rarc; // Centro del arco cóncavo (mordisco)
   
-  // --- 1. EL MORDISCO CÓNCAVO (Sin cambios) ---
+  // --- 1. EL MORDISCO CÓNCAVO ---
   const left = Math.atan2(sag - Rarc, -half);
   const right = Math.atan2(sag - Rarc, half);
   const steps = 36;
   
-  // Calculamos dónde termina el mordisco a la derecha
-  const endX = Math.cos(right) * Rarc;
-  const endY = cy + Math.sin(right) * Rarc;
-
-  // --- 2. CÁLCULO DEL PUNTO DE TANGENCIA PARA LA ESQUINA INFERIOR DERECHA ---
-  // Para que sea tangente, el centro del arco de redondeo debe estar a una distancia (Rarc - cornerRadius) del centro del mordisco.
-  // Y su distancia al borde recto derecho (x = half) debe ser cornerRadius.
-  
-  // Centro del arco de redondeo:
+  // Centro del arco de redondeo (Derecha)
   const crX = half - cornerRadius;
   const crY = cy + Math.sqrt(Math.pow(Rarc - cornerRadius, 2) - Math.pow(crX, 2));
-  
-  // Ángulo del punto de tangencia (desde el centro del mordisco hacia el centro del redondeo)
   const tangentAngle = Math.atan2(crY - cy, crX);
 
-  // --- 3. DIBUJAR EL MORDISCO HASTA EL PUNTO DE TANGENCIA ---
-  // En lugar de dibujar el mordisco hasta el final, lo cortamos justo donde empieza la tangencia.
+  // --- 2. DIBUJAR EL MORDISCO HASTA EL PUNTO DE TANGENCIA ---
   for (let i = 0; i <= steps; i++) {
     const ang = left + ((right - left) * i) / steps;
     if (ang <= tangentAngle) {
@@ -126,24 +115,27 @@ function edgeBulge(a: number, sag: number, cornerRadius: number = 0.08): Pt[] {
     }
   }
 
-  // --- 4. DIBUJAR LA ESQUINA INFERIOR DERECHA (Redondeada y tangente) ---
+  // --- 3. ESQUINA INFERIOR DERECHA ---
   arc(loop, crX, crY, cornerRadius, tangentAngle, 0, 8);
-  // (El arco va desde el ángulo de tangencia hasta 0 grados, que es el borde recto derecho)
 
-  // --- 5. BORDES Y ESQUINAS SUPERIORES (Redondeadas normal) ---
+  // --- 4. BORDES Y ESQUINAS SUPERIORES ---
   push(loop, half, half - cornerRadius); // Borde derecho
   arc(loop, half - cornerRadius, half - cornerRadius, cornerRadius, 0, Math.PI / 2, 8); // Esquina sup derecha
   push(loop, -half + cornerRadius, half); // Borde superior
   arc(loop, -half + cornerRadius, half - cornerRadius, cornerRadius, Math.PI / 2, Math.PI, 8); // Esquina sup izquierda
-  push(loop, -half, -half + sag + cornerRadius); // Borde izquierdo
-
-  // --- 6. ESQUINA INFERIOR IZQUIERDA (Simétrica, tangente) ---
-  // Por simetría, el centro del arco izquierdo es (-crX, crY)
-  arc(loop, -crX, crY, cornerRadius, Math.PI, Math.PI - tangentAngle, 8);
+  
+  // --- 5. ESQUINA INFERIOR IZQUIERDA (CORREGIDA) ---
+  // El centro es (-crX, crY). El ángulo de tangencia en la izquierda es PI - tangentAngle.
+  const leftTangentAngle = Math.PI - tangentAngle;
+  
+  // Dibujamos el borde izquierdo hasta donde empieza el arco
+  push(loop, -half, crY - Math.sin(tangentAngle) * cornerRadius);
+  
+  // Dibujamos el arco desde el borde recto hasta el punto de tangencia con el mordisco
+  arc(loop, -crX, crY, cornerRadius, Math.PI, leftTangentAngle, 8);
 
   return loop;
 }
-
 
 // --- CONVERSIÓN A GEOMETRÍA 3D ---
 
@@ -173,8 +165,8 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth: 0.09,             // 1. Más grosor (relieve negativo profundo)
     bevelEnabled: true,      // 2. Biselado activado
-    bevelThickness: 0.02,   // 3. Bisel sutil
-    bevelSize: 0.04,
+    bevelThickness: 0.03,   // 3. Bisel sutil
+    bevelSize: 0.03,
     bevelSegments: 2,
     curveSegments: 4,
   });
