@@ -15,8 +15,8 @@ import {
   Vector2,
   Vector3,
   BoxGeometry,
-  TextureLoader,
   Texture,
+  CanvasTexture,
   type Intersection,
 } from "three";
 import {
@@ -160,7 +160,9 @@ export class CubeEngine {
 
   private queue: Move[] = [];
   private anim: Anim | null = null;
-  private readonly logoTexture: Texture; // <-- AÑADE ESTO
+  
+  // Textura del logo protegida
+  private readonly logoTexture: Texture;
 
   private history: {
     axis: Axis;
@@ -220,8 +222,8 @@ export class CubeEngine {
   } | null = null;
 
   private reduced: boolean;
-  private hapticsEnabled = true; // <-- NUEVO
-  private keyLight: PointLight | null = null; // <-- NUEVO: Referencia para sombras
+  private hapticsEnabled = true;
+  private keyLight: PointLight | null = null;
 
   constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
     this.camera = opts.camera;
@@ -229,17 +231,42 @@ export class CubeEngine {
     this.hooks = opts.hooks;
 
     this.reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    // NUEVO: Cargar la textura del logo
-    const loader = new TextureLoader();
-    this.logoTexture = loader.load("/gan-logo.png");
 
-    // NUEVO: Ajustes para que el logo se vea nítido y centrado
+    // 1. CREACIÓN DEL CANVAS Y TEXTURA BLANCA BASE
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d")!;
+    
+    // Fondo blanco inmediato para que la pieza nunca sea invisible
+    ctx.fillStyle = "#f7f7f2"; 
+    ctx.fillRect(0, 0, 512, 512);
+
+    this.logoTexture = new CanvasTexture(canvas);
     this.logoTexture.center.set(0.5, 0.5);
+    this.logoTexture.needsUpdate = true;
+
+    // 2. CARGA ASÍNCRONA DEL LOGO
+    const img = new Image();
+    img.src = "/gan-logo.png";
+    img.onload = () => {
+      const logoSize = 512 * 0.6; // 60% del tamaño
+      const offset = (512 - logoSize) / 2;
+      ctx.drawImage(img, offset, offset, logoSize, logoSize);
+      
+      // Forzamos la actualización de la textura en la GPU
+      this.logoTexture.needsUpdate = true;
+      
+      // Obligamos a Three.js a redibujar los materiales del logo
+      this.mats.forEach(m => {
+        if (m instanceof MeshPhysicalMaterial && m.map === this.logoTexture) {
+          m.needsUpdate = true;
+        }
+      });
+    };
 
     this.pieces = this.buildPieces();
-
     this.buildLights(opts.scene);
-
     opts.scene.add(this.cubeRoot);
     this.owned.push(this.cubeRoot);
 
@@ -280,14 +307,12 @@ export class CubeEngine {
 
   start() {
     if (this.phase !== "ready") return;
-
     this.sfx.unlock();
     this.beginScramble();
   }
 
   replay() {
     if (this.phase !== "won") return;
-
     this.sfx.unlock();
     this.beginScramble();
   }
@@ -488,13 +513,11 @@ export class CubeEngine {
     this.phase = "won";
     this.sfx.win();
 
-    // NUEVO: Vibración secuencial de victoria
     if (this.hapticsEnabled && typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate([150, 80, 150, 80, 300]);
     }
 
     this.hooks.onPhase(this.phase);
-    // NUEVO: Avisar al exterior
     if (this.onStateChange) this.onStateChange();
   }
 
@@ -618,7 +641,6 @@ export class CubeEngine {
       this.declareWin();
     }
 
-    // NUEVO: Avisar al exterior que el estado ha cambiado
     if (this.onStateChange) this.onStateChange();
   }
 
@@ -984,7 +1006,6 @@ export class CubeEngine {
     const gan = createGanGeometries();
     this.geos.push(...gan.all);
 
-    // 1. MATERIALES
     const plastic = new MeshPhysicalMaterial({
       color: "#000000",
       roughness: 0.55,
@@ -1007,15 +1028,11 @@ export class CubeEngine {
       this.mats.push(mat);
     }
 
-    // 2. NÚCLEO NEGRO CENTRAL
-    // Un cubo grande que ocupa el espacio interior.
-    // Su tamaño es ligeramente menor que el cubo total para que quepa.
     const coreGeo = new BoxGeometry(1.8, 1.8, 1.8);
     const core = new Mesh(coreGeo, plastic);
     this.geos.push(coreGeo);
     this.cubeRoot.add(core);
 
-    // 3. STICKERS DE COLORES
     return createSolved().map((data, id) => {
       const mesh = new Group();
       mesh.userData.isCubie = true;
@@ -1031,39 +1048,31 @@ export class CubeEngine {
         if (sign === 0) continue;
 
         const color = faceColor(axis, sign);
-
-        // NUEVO: Lógica para inyectar el logo
-        let mat = stickerMats.get(color)!; // Cambiamos const por let
+        let mat = stickerMats.get(color)!;
 
         if (color === "W" && kind === "center") {
-          // Creamos un material exclusivo para el centro blanco
           mat = new MeshPhysicalMaterial({
             color: "#f7f7f2",
             map: this.logoTexture,
-            transparent: true, // <-- CLAVE: Habilita el canal alfa
-            alphaTest: 0.1, // <-- Recomendado: descarta píxeles casi transparentes
             roughness: 0.2,
             metalness: 0.0,
             clearcoat: 1.0,
             clearcoatRoughness: 0.5,
           });
 
-          // Ajustamos el logo al 60% del tamaño total (1 / 0.6 = 1.666)
           const scale = 1.666;
           this.logoTexture.repeat.set(scale, scale);
           this.logoTexture.offset.set((1 - scale) / 2, (1 - scale) / 2);
-
-          this.mats.push(mat); // Lo guardamos para que se limpie al salir
+          
+          // Añadimos el material a la lista para actualizarlo luego si es necesario
+          this.mats.push(mat);
         }
 
         const face = new Group();
-
-        // SOLO el sticker con relieve (sin cuerpo negro individual)
         const sticker = new Mesh(gan.sticker[kind], mat);
         sticker.userData.stickerColor = color;
         sticker.position.z = 0;
 
-        // Orientación base de la cara
         const offset = 0.94 / 2;
         if (axis === 0) {
           face.position.x = sign * offset;
@@ -1076,7 +1085,6 @@ export class CubeEngine {
           if (sign < 0) face.rotation.y = Math.PI;
         }
 
-        // Rotación del mordisco
         const roll = ganRoll(data.home, axis, kind);
         if (roll) face.rotateZ(roll);
 
@@ -1098,14 +1106,11 @@ export class CubeEngine {
 
     const size = quality === "high" ? 2048 : quality === "medium" ? 1024 : 512;
 
-    // Si la luz ya tiene un mapa de sombras, Three.js no permite cambiar el tamaño fácilmente sin recrearlo.
-    // Pero para mantenerlo simple, solo ajustamos si es posible.
     if (this.keyLight.shadow.map) {
       this.keyLight.shadow.map.setSize(size, size);
       this.keyLight.shadow.map.dispose();
       this.keyLight.shadow.map = null;
     }
-    // Forzamos la actualización
     this.keyLight.shadow.mapSize.set(size, size);
     this.keyLight.shadow.needsUpdate = true;
   }
@@ -1119,7 +1124,7 @@ export class CubeEngine {
               const colorId = meshPart.userData.stickerColor;
               const newHex = colors[colorId];
               if (newHex && meshPart.material instanceof MeshPhysicalMaterial) {
-                // NUEVO: Escudo para proteger el logo
+                // Escudo para proteger el logo
                 if (meshPart.material.map) {
                   return;
                 }
@@ -1141,12 +1146,11 @@ export class CubeEngine {
     const key = new PointLight("#ffffff", 45, 50);
     key.position.set(0, 10, 0);
 
-    // NUEVO: Configuración de sombras para la luz principal
     key.castShadow = true;
-    key.shadow.mapSize.width = 1024; // Calidad media por defecto
+    key.shadow.mapSize.width = 1024;
     key.shadow.mapSize.height = 1024;
     key.shadow.bias = -0.001;
-    this.keyLight = key; // Guardamos la referencia
+    this.keyLight = key;
 
     const fill = new DirectionalLight("#9fdfff", 0.48);
     fill.position.set(-7, 3.2, -4);
@@ -1219,8 +1223,6 @@ export class CubeEngine {
               const colorId = meshPart.userData.stickerColor;
               if (colorId && colors[colorId as keyof typeof colors]) {
                 const newHex = colors[colorId as keyof typeof colors];
-                // NUEVO: Si el material tiene un mapa (el logo), no lo tocamos
-                // Este escudo debe ir ANTES de cambiar los colores
                 if (meshPart.material.map) {
                   return;
                 }
@@ -1253,7 +1255,6 @@ export class CubeEngine {
   public loadSaveState(state: { history: any[]; phase: "playing" | "won" }) {
     if (!state || !state.history) return;
 
-    // Aplicamos los movimientos instantáneamente sin animación
     for (const move of state.history) {
       applyQuarters(this.pieces, move.axis, move.layer, move.quarters);
     }
