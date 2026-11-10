@@ -91,49 +91,26 @@ function roundRect(a: number, rTL: number, rTR: number, rBR: number, rBL: number
 }
 
 
-function edgeBulge(a: number, sag: number, cornerRadius: number = 0.08): Pt[] {
+// Cuadrado con un mordisco cóncavo en el lado que mira hacia el centro (-Y local)
+function edgeBulge(a: number, sag: number): Pt[] {
   const half = a / 2;
   const loop: Pt[] = [];
   const Rarc = (half * half + sag * sag) / (2 * sag);
-  const cy = -half + Rarc; // Centro del arco cóncavo (mordisco)
+  const cy = -half + Rarc; // Centro del arco cóncavo
   
-  // --- 1. EL MORDISCO CÓNCAVO ---
+  // Arco cóncavo (desde la izquierda hasta la derecha)
   const left = Math.atan2(sag - Rarc, -half);
   const right = Math.atan2(sag - Rarc, half);
   const steps = 36;
-  
-  // Centro del arco de redondeo (Derecha)
-  const crX = half - cornerRadius;
-  const crY = cy + Math.sqrt(Math.pow(Rarc - cornerRadius, 2) - Math.pow(crX, 2));
-  const tangentAngle = Math.atan2(crY - cy, crX);
-
-  // --- 2. DIBUJAR EL MORDISCO HASTA EL PUNTO DE TANGENCIA ---
   for (let i = 0; i <= steps; i++) {
     const ang = left + ((right - left) * i) / steps;
-    if (ang <= tangentAngle) {
-      push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
-    }
+    push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
   }
-
-  // --- 3. ESQUINA INFERIOR DERECHA ---
-  arc(loop, crX, crY, cornerRadius, tangentAngle, 0, 8);
-
-  // --- 4. BORDES Y ESQUINAS SUPERIORES ---
-  push(loop, half, half - cornerRadius); // Borde derecho
-  arc(loop, half - cornerRadius, half - cornerRadius, cornerRadius, 0, Math.PI / 2, 8); // Esquina sup derecha
-  push(loop, -half + cornerRadius, half); // Borde superior
-  arc(loop, -half + cornerRadius, half - cornerRadius, cornerRadius, Math.PI / 2, Math.PI, 8); // Esquina sup izquierda
   
-  // --- 5. ESQUINA INFERIOR IZQUIERDA (CORREGIDA) ---
-  // El centro es (-crX, crY). El ángulo de tangencia en la izquierda es PI - tangentAngle.
-  const leftTangentAngle = Math.PI - tangentAngle;
+  // Bordes rectos exteriores (Esquinas perfectas de 90 grados)
+  push(loop, half, half);
+  push(loop, -half, half);
   
-  // Dibujamos el borde izquierdo hasta donde empieza el arco
-  push(loop, -half, crY - Math.sin(tangentAngle) * cornerRadius);
-  
-  // Dibujamos el arco desde el borde recto hasta el punto de tangencia con el mordisco
-  arc(loop, -crX, crY, cornerRadius, Math.PI, leftTangentAngle, 8);
-
   return loop;
 }
 
