@@ -979,11 +979,10 @@ export class CubeEngine {
         piece.pos[1] * SPACING,
         piece.pos[2] * SPACING,
       );
-
       quatFromOri(piece.ori, piece.mesh.quaternion, this.tmpA, this.tmpB, this.tmpC);
     }
 
-    // Re-aplicar el tema o los colores personalizados después de mover las piezas
+    // Aplicar el tema guardado en memoria
     if (this.currentCustomColors) {
       this.applyCustomColors(this.currentCustomColors);
     } else {

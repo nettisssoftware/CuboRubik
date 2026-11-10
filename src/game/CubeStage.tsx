@@ -117,7 +117,13 @@ if (props.settings.savedGame) {
     // Actualizar calidad de sombras
     engine.updateShadowQuality(props.settings.shadowQuality);
     
-  }, [props.settings]);
+  }, [
+  props.settings.cameraSensitivity, 
+  props.settings.hapticsEnabled, 
+  props.settings.theme, 
+  props.settings.customColors, 
+  props.settings.shadowQuality
+]);
 
   useFrame((_, dt) => {
     const engine = engineRef.current;
