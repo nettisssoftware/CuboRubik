@@ -1039,7 +1039,9 @@ export class CubeEngine {
           // Creamos un material exclusivo para el centro blanco
           mat = new MeshPhysicalMaterial({
             color: "#f7f7f2",
-            map: this.logoTexture, // Aquí inyectamos la imagen
+            map: this.logoTexture,
+            transparent: true, // <-- CLAVE: Habilita el canal alfa
+            alphaTest: 0.1, // <-- Recomendado: descarta píxeles casi transparentes
             roughness: 0.2,
             metalness: 0.0,
             clearcoat: 1.0,
