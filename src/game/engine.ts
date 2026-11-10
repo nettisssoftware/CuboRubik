@@ -256,7 +256,7 @@ export class CubeEngine {
 
     img.onload = () => {
       // El logo ocupará el 60 % de la superficie.
-      const logoSize = 512 * 0.6;
+      const logoSize = 512 * 0.85;
       const offset = (512 - logoSize) / 2;
 
       // Dibujar el PNG centrado, conservando su transparencia.
