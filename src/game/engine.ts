@@ -242,7 +242,7 @@ export class CubeEngine {
     const ctx = canvas.getContext("2d")!;
 
     // Fondo blanco inmediato para que la pieza nunca sea invisible
-    ctx.fillStyle = "#f7f7f2";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, 512, 512);
 
     this.logoTexture = new CanvasTexture(canvas);
@@ -259,7 +259,7 @@ export class CubeEngine {
 
     img.onload = () => {
       // El logo ocupará el 60 % de la superficie.
-      const logoSize = 512 * 0.85;
+      const logoSize = 512 * 0.9;
       const offset = (512 - logoSize) / 2;
 
       // Dibujar el PNG centrado, conservando su transparencia.
@@ -270,10 +270,10 @@ export class CubeEngine {
     };
 
     img.onerror = () => {
-      console.error("No se pudo cargar /gan-logo.png");
+      console.error("No se pudo cargar /zun-logo.png");
     };
 
-    img.src = "/gan-logo.png";
+    img.src = "/zun-logo.png";
 
     this.pieces = this.buildPieces();
     this.buildLights(opts.scene);
@@ -1193,7 +1193,7 @@ export class CubeEngine {
       classic: {
         R: "#cd0009",
         O: "#bc4e00",
-        W: "#f7f7f2",
+        W: "#ffffff",
         Y: "#e2b800",
         G: "#009b48",
         B: "#0057d9",
