@@ -70,7 +70,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 1.03;
+const SPACING = 1.02;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
 const BODY_SIZE = 0.9;

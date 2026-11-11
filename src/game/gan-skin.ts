@@ -130,21 +130,23 @@ function edgeBulge(a: number, sag: number): Pt[] {
     push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
   }
   
-  // 2. NUEVO: Chaflán de 45° para la unión equitativa
-  // El "cut" es cuánto se adentra la pieza para crear la "V".
-  // 0.045 es un buen punto de partida.
-  const cut = 0.045;
+  // 2. EL INGLETE (Corte a 45 grados para uniones perfectas)
+  // Ajusta 'cut' para hacer el inglete más grande o más pequeño.
+  const cut = 0.06; 
 
-  // Lado derecho: sube, pero se adentra en diagonal antes de llegar a la esquina superior
+  // Lado derecho: Sube, pero se corta en diagonal antes de llegar a la esquina
   push(loop, half, half - cut);
+  // Diagonal recta de 45° hacia la izquierda
   push(loop, half - cut, half);
   
-  // Lado izquierdo: baja desde la esquina superior adentrándose, y luego sigue recto
+  // Lado izquierdo: Desde la diagonal, cruza el borde superior y baja
   push(loop, -half + cut, half);
+  // Diagonal recta de 45° hacia la izquierda
   push(loop, -half, half - cut);
   
   return loop;
 }
+
 // --- CONVERSIÓN A GEOMETRÍA 3D ---
 
 function shapeFrom(loop: Pt[]): Shape {
