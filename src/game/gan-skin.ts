@@ -130,23 +130,21 @@ function edgeBulge(a: number, sag: number): Pt[] {
     push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
   }
   
-  // 2. NUEVO: Chaflán en la esquina exterior (Corte a 45 grados)
-  // En lugar de ir directo a (half, half), hacemos un corte.
-  const cut = 0.06; // Tamaño del corte. Puedes ajustarlo (ej. 0.04 a 0.08) para que sea más o menos pronunciado.
+  // 2. NUEVO: Chaflán de 45° para la unión equitativa
+  // El "cut" es cuánto se adentra la pieza para crear la "V".
+  // 0.045 es un buen punto de partida.
+  const cut = 0.045;
 
-  // Lado derecho (sube y corta antes de la esquina)
+  // Lado derecho: sube, pero se adentra en diagonal antes de llegar a la esquina superior
   push(loop, half, half - cut);
-  // Corte diagonal hacia la izquierda
   push(loop, half - cut, half);
   
-  // Lado izquierdo (baja desde la esquina cortada)
+  // Lado izquierdo: baja desde la esquina superior adentrándose, y luego sigue recto
   push(loop, -half + cut, half);
-  // Corte diagonal hacia abajo
   push(loop, -half, half - cut);
   
   return loop;
 }
-
 // --- CONVERSIÓN A GEOMETRÍA 3D ---
 
 function shapeFrom(loop: Pt[]): Shape {
