@@ -1068,6 +1068,7 @@ export class CubeEngine {
 
         if (color === "W" && kind === "center") {
           mat = new MeshPhysicalMaterial({
+            color: "#ffffff",
             map: this.logoTexture,
             roughness: 0.2,
             metalness: 0.0,
