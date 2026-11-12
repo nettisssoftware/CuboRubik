@@ -92,7 +92,7 @@ function roundRect(a: number, rTL: number, rTR: number, rBR: number, rBL: number
 
 
 // Cuadrado con un mordisco cóncavo en el lado que mira hacia el centro (-Y local)
-function edgeBulge(a: number, sag: number): Pt[] {
+/*function edgeBulge(a: number, sag: number): Pt[] {
   const half = a / 2;
   const loop: Pt[] = [];
   const Rarc = (half * half + sag * sag) / (2 * sag);
@@ -112,7 +112,45 @@ function edgeBulge(a: number, sag: number): Pt[] {
   push(loop, -half, half);
   
   return loop;
+} */
+
+
+
+// Cuadrado con un mordisco cóncavo en el lado que mira hacia el centro (-Y local)
+function edgeBulge(a: number, sag: number): Pt[] {
+  const half = a / 2;
+  const loop: Pt[] = [];
+  const Rarc = (half * half + sag * sag) / (2 * sag);
+  const cy = -half + Rarc; // Centro del arco cóncavo
+  
+  // 1. Arco cóncavo (el mordisco) - SIN CAMBIOS
+  const left = Math.atan2(sag - Rarc, -half);
+  const right = Math.atan2(sag - Rarc, half);
+  const steps = 36;
+  for (let i = 0; i <= steps; i++) {
+    const ang = left + ((right - left) * i) / steps;
+    push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
+  }
+  
+  // 2. NUEVO: Redondeo de las esquinas exteriores (radio 0.08)
+  // Usamos el mismo valor que CORNER_RADIUS de tu código.
+  const cornerRadius = 0.08;
+
+  // Borde derecho: sube, pero se redondea en la esquina superior
+  push(loop, half, half - cornerRadius);
+  arc(loop, half - cornerRadius, half - cornerRadius, cornerRadius, 0, Math.PI / 2, 8);
+  
+  // Borde superior: se cruza y se redondea en la esquina superior izquierda
+  push(loop, -half + cornerRadius, half);
+  arc(loop, -half + cornerRadius, half - cornerRadius, cornerRadius, Math.PI / 2, Math.PI, 8);
+  
+  // Borde izquierdo: baja hasta tocar el mordisco
+  push(loop, -half, half - cornerRadius);
+  
+  return loop;
 }
+
+
 
 // --- CONVERSIÓN A GEOMETRÍA 3D ---
 
