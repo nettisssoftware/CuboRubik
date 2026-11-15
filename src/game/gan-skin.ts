@@ -16,7 +16,7 @@ export type GanGeos = {
 };
 
 const SIZE = 0.94; // Ancho total de la pieza (y del sticker)
-const DEPTH = 0.94; // Profundidad total de la pieza negra
+const DEPTH = 0.75; // Profundidad total de la pieza negra
 const R = 0.23; // Radio de las esquinas redondeadas
 const SAG = 0.18; // Profundidad del "mordisco" cóncavo de las aristas
 
@@ -167,11 +167,14 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
     depth: depth,
-    bevelEnabled: false,
+    bevelEnabled: true,      // Ahora el cuerpo tiene bisel
+    bevelThickness: 0.02,
+    bevelSize: 0.02,
+    bevelSegments: 1,
+    curveSegments: 4,
   });
-  // CAMBIO CLAVE: Extruimos hacia adentro, no centramos.
-  // Su cara exterior queda en Z=0 y el cuerpo va hacia Z=-0.94.
-  geo.translate(0, 0, -depth / 2);
+  // Lo hundimos para que el sticker se asiente encima
+  geo.translate(0, 0, -depth + 0.07); 
   return geo;
 }
 

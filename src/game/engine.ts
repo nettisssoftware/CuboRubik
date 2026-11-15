@@ -14,7 +14,6 @@ import {
   Scene,
   Vector2,
   Vector3,
-  BoxGeometry,
   Texture,
   CanvasTexture,
   type Intersection,
@@ -1044,11 +1043,6 @@ export class CubeEngine {
       this.mats.push(mat);
     }
 
-    const coreGeo = new BoxGeometry(1.8, 1.8, 1.8);
-    const core = new Mesh(coreGeo, plastic);
-    this.geos.push(coreGeo);
-    this.cubeRoot.add(core);
-
     return createSolved().map((data, id) => {
       const mesh = new Group();
       mesh.userData.isCubie = true;
@@ -1081,6 +1075,13 @@ export class CubeEngine {
         }
 
         const face = new Group();
+
+        // NUEVO: Añadir el cuerpo negro idéntico al sticker
+        const body = new Mesh(gan.body[kind], plastic);
+        body.userData.stickerColor = color;
+        body.position.z = 0;
+        face.add(body);
+        
         const sticker = new Mesh(gan.sticker[kind], mat);
         sticker.userData.stickerColor = color;
         sticker.position.z = 0;
