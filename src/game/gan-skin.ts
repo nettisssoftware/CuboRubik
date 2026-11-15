@@ -167,13 +167,13 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
     depth: depth,
-    bevelEnabled: true,      // Ahora el cuerpo tiene bisel
+    bevelEnabled: true,
     bevelThickness: 0.02,
     bevelSize: 0.02,
     bevelSegments: 1,
     curveSegments: 4,
   });
-  // Lo hundimos para que el sticker se asiente encima
+  // Hundimos el cuerpo para que el sticker se asiente encima
   geo.translate(0, 0, -depth + 0.07); 
   return geo;
 }

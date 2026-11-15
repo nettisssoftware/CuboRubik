@@ -1078,7 +1078,6 @@ export class CubeEngine {
 
         // NUEVO: Añadir el cuerpo negro idéntico al sticker
         const body = new Mesh(gan.body[kind], plastic);
-        body.userData.stickerColor = color;
         body.position.z = 0;
         face.add(body);
         
