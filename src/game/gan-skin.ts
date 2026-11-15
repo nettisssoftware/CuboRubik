@@ -174,7 +174,7 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
     curveSegments: 4,
   });
   // Hundimos el cuerpo para que el sticker se asiente encima
-  geo.translate(0, 0, -depth + 0.07); 
+  geo.translate(0, 0, -depth + 0.05); 
   return geo;
 }
 
