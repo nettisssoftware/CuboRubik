@@ -163,20 +163,24 @@ function shapeFrom(loop: Pt[]): Shape {
 }
 
 
+
 function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
-    depth: depth,
+    depth,
     bevelEnabled: true,
     bevelThickness: 0.02,
     bevelSize: 0.02,
     bevelSegments: 1,
     curveSegments: 4,
   });
-  // Hundimos el cuerpo para que el sticker se asiente encima
-  geo.translate(0, 0, -depth + 0.04);
+
+  // El cuerpo negro queda detrás de la superficie coloreada.
+  geo.translate(0, 0, -depth - 0.02);
+
   return geo;
 }
+
 
 function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const shape = shapeFrom(loop);
