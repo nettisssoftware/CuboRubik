@@ -11,7 +11,7 @@ export type TileKind = "center" | "edge" | "corner";
 
 export type GanGeos = {
   body: Record<TileKind, ExtrudeGeometry>;
-  sticker: Record<TileKind, ShapeGeometry>;
+  sticker: Record<TileKind, ExtrudeGeometry>;
   all: BufferGeometry[];
 };
 
@@ -174,7 +174,7 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
     curveSegments: 4,
   });
   // Hundimos el cuerpo para que el sticker se asiente encima
-  geo.translate(0, 0, -depth - 0.01);
+  geo.translate(0, 0, -depth + 0.04);
   return geo;
 }
 
