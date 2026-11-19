@@ -23,10 +23,10 @@ export type GameSettings = {
 };
 
 export const DEFAULT_COLORS: FaceColor = {
-  R: "#de1b24",
-  O: "#ff6a00",
-  W: "#f7f7f2", // El blanco se queda fijo
-  Y: "#ffd000",
+  R: "#cd0009",
+  O: "#bc4e00",
+  W: "#ffffff",
+  Y: "#e2b800",
   G: "#009b48",
   B: "#0057d9",
 };
@@ -47,6 +47,10 @@ const DEFAULT_SETTINGS: GameSettings = {
 };
 
 export function useSettings() {
+
+  // NUEVO: Estado para saber si ya cargamos los datos
+  const [isLoaded, setIsLoaded] = useState(false); 
+  
   const [settings, setSettings] = useState<GameSettings>(() => {
     try {
       const saved = localStorage.getItem("cubix_settings");
@@ -66,6 +70,8 @@ export function useSettings() {
     if (settings.saveProgress) {
       localStorage.setItem("cubix_settings", JSON.stringify(settings));
     }
+    setIsLoaded(true);
+    
   }, [settings]);
 
   const updateSetting = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
@@ -83,5 +89,5 @@ export function useSettings() {
     setSettings(DEFAULT_SETTINGS);
   };
 
-  return { settings, updateSetting, clearAllData };
+  return { settings, updateSetting, clearAllData, isLoaded};
 }

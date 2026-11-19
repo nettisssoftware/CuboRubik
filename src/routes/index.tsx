@@ -22,8 +22,7 @@ function Home() {
   phaseRef.current = phase;
 
   // Configuración del usuario
-  const { settings, updateSetting } = useSettings();
-
+  const { settings, updateSetting, isLoaded } = useSettings();
   // 1. Cargar el componente 3D de forma dinámica
   useEffect(() => {
     let live = true;
@@ -103,7 +102,7 @@ function Home() {
   return (
     <main className="arena">
       <div className="stage">
-        {Stage ? (
+        {Stage && isLoaded ? (
           <Stage
             settings={settings} // <-- PASAMOS LA CONFIGURACIÓN
             onSaveState={handleSaveState}

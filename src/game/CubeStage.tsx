@@ -64,15 +64,7 @@ function Scene(props: Props) {
       setHaptics: (enabled) => engine.setHaptics(enabled), // <-- NUEVO
     });
 
-    // Aplicar configuración inicial al motor
-    engine.setSensitivity(props.settings.cameraSensitivity);
-    if (props.settings.theme === "custom") {
-      engine.setCustomColors(props.settings.customColors);
-    } else {
-      engine.setTheme(props.settings.theme);
-    }
-    engine.setHaptics(props.settings.hapticsEnabled);
-
+    
     const el = gl.domElement;
     const down = (e: PointerEvent) => engine.onPointerDown(e);
     const move = (e: PointerEvent) => engine.onPointerMove(e);
