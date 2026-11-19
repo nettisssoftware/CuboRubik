@@ -1,10 +1,6 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
-import { 
-  NoToneMapping, 
-  ACESFilmicToneMapping, 
-  type PerspectiveCamera as ThreeCamera 
-} from "three";
+import { NoToneMapping, ACESFilmicToneMapping, type PerspectiveCamera as ThreeCamera } from "three";
 import { CubeEngine, type CubeApi, type Phase } from "./engine";
 import type { GameSettings } from "@/components/ui/useSettings";
 
@@ -36,19 +32,28 @@ function Scene(props: Props) {
     });
     engineRef.current = engine;
 
-    // NUEVO: Configurar el guardado automático
-engine.onStateChange = () => {
-  const saveState = engine.getSaveState();
-  if (propsRef.current.onSaveState) {
-    propsRef.current.onSaveState(saveState);
-  }
-};
+    // NUEVO: Inicializar los ajustes del motor INMEDIATAMENTE
+    engine.initSettings({
+      cameraSensitivity: props.settings.cameraSensitivity,
+      hapticsEnabled: props.settings.hapticsEnabled,
+      theme: props.settings.theme,
+      customColors: props.settings.customColors,
+      shadowQuality: props.settings.shadowQuality,
+    });
 
-// NUEVO: Cargar partida si existe
-if (props.settings.savedGame) {
-  engine.loadSaveState(props.settings.savedGame);
-}
-    
+    // NUEVO: Configurar el guardado automático
+    engine.onStateChange = () => {
+      const saveState = engine.getSaveState();
+      if (propsRef.current.onSaveState) {
+        propsRef.current.onSaveState(saveState);
+      }
+    };
+
+    // NUEVO: Cargar partida si existe
+    if (props.settings.savedGame) {
+      engine.loadSaveState(props.settings.savedGame);
+    }
+
     // API EXPUESTA AL PADRE
     propsRef.current.onApi({
       start: () => engine.start(),
@@ -56,7 +61,7 @@ if (props.settings.savedGame) {
       setSensitivity: (val) => engine.setSensitivity(val),
       setTheme: (theme) => engine.setTheme(theme),
       setCustomColors: (colors) => engine.setCustomColors(colors), // <-- NUEVO
-      setHaptics: (enabled) => engine.setHaptics(enabled),          // <-- NUEVO
+      setHaptics: (enabled) => engine.setHaptics(enabled), // <-- NUEVO
     });
 
     // Aplicar configuración inicial al motor
@@ -104,10 +109,10 @@ if (props.settings.savedGame) {
   useEffect(() => {
     if (!engineRef.current) return;
     const engine = engineRef.current;
-    
+
     engine.setSensitivity(props.settings.cameraSensitivity);
     engine.setHaptics(props.settings.hapticsEnabled);
-    
+
     if (props.settings.theme === "custom") {
       engine.setCustomColors(props.settings.customColors);
     } else {
@@ -116,14 +121,13 @@ if (props.settings.savedGame) {
 
     // Actualizar calidad de sombras
     engine.updateShadowQuality(props.settings.shadowQuality);
-    
   }, [
-  props.settings.cameraSensitivity, 
-  props.settings.hapticsEnabled, 
-  props.settings.theme, 
-  props.settings.customColors, 
-  props.settings.shadowQuality
-]);
+    props.settings.cameraSensitivity,
+    props.settings.hapticsEnabled,
+    props.settings.theme,
+    props.settings.customColors,
+    props.settings.shadowQuality,
+  ]);
 
   useFrame((_, dt) => {
     const engine = engineRef.current;
@@ -138,7 +142,7 @@ if (props.settings.savedGame) {
 export function CubeStage(props: Props) {
   // Lógica de DPR dinámico
   const dpr: [number, number] = props.settings.batterySaver ? [1, 1] : [1, 3];
-  
+
   return (
     <Canvas
       shadows={props.settings.shadowQuality !== "low"} // Desactiva sombras si es "low"

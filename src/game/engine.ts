@@ -69,7 +69,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 1.02;
+const SPACING = 1.03;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
 const BODY_SIZE = 0.9;
@@ -1022,7 +1022,7 @@ export class CubeEngine {
     this.geos.push(...gan.all);
 
     const plastic = new MeshPhysicalMaterial({
-      color: "#000000",
+      color: "#ffffff",
       roughness: 0.55,
       metalness: 0.0,
     });
@@ -1080,7 +1080,7 @@ export class CubeEngine {
         const body = new Mesh(gan.body[kind], plastic);
         body.position.z = 0;
         face.add(body);
-        
+
         const sticker = new Mesh(gan.sticker[kind], mat);
         sticker.userData.stickerColor = color;
         sticker.position.z = 0;
@@ -1213,7 +1213,7 @@ export class CubeEngine {
         W: "#e0e0e0",
         Y: "#ffcc00",
         G: "#00cc44",
-        B: "#cc00b3",
+        B: "#0053cc",
       },
     };
     const colors = palettes[theme];
@@ -1281,6 +1281,26 @@ export class CubeEngine {
     if (this.phase === "won") {
       this.lookY = -1.15;
     }
+  }
+
+  // NUEVO: Método para inicializar todos los ajustes de golpe
+  public initSettings(settings: {
+    cameraSensitivity: number;
+    hapticsEnabled: boolean;
+    theme: string;
+    customColors?: Record<string, string>;
+    shadowQuality: "low" | "medium" | "high";
+  }) {
+    this.setSensitivity(settings.cameraSensitivity);
+    this.setHaptics(settings.hapticsEnabled);
+
+    if (settings.theme === "custom" && settings.customColors) {
+      this.setCustomColors(settings.customColors);
+    } else {
+      this.setTheme(settings.theme as any);
+    }
+
+    this.updateShadowQuality(settings.shadowQuality);
   }
 }
 
