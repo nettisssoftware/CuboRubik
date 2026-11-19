@@ -176,7 +176,7 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   });
 
   // El cuerpo negro queda detrás de la superficie coloreada.
-  geo.translate(0, 0, -depth - 0.02);
+  geo.translate(0, 0, -depth - 0.03);
 
   return geo;
 }
@@ -194,7 +194,7 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   });
   // 4. Empujamos el sticker hacia adentro (relieve negativo puro)
   // Su cara frontal queda en Z=0, al ras.
-  geo.translate(0, 0, -0.04); 
+  geo.translate(0, 0, + 0.03); 
   return geo;
 }
 
