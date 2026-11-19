@@ -187,7 +187,7 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth: 0.09,             // 1. Más grosor (relieve negativo profundo)
     bevelEnabled: true,      // 2. Biselado activado
-    bevelThickness: 0.04,   // 3. Bisel sutil
+    bevelThickness: 0.06,   // 3. Bisel sutil
     bevelSize: 0.04,
     bevelSegments: 2,
     curveSegments: 4,
