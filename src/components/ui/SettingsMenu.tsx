@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSettings, type FaceColor } from "@/components/ui/useSettings";
+import { useSettings, type FaceColor, type PageTheme } from "@/components/ui/useSettings";
 import { audioManager } from "@/game/audio-manager";
 import "@/components/ui/SettingsMenu.css";
 
@@ -13,6 +13,12 @@ const THEMES = [
   { id: "pastel", name: "Pastel", colors: ["#ff6b6b", "#70a1ff", "#ffeda0"] },
   { id: "halloween", name: "Halloween", colors: ["#ff3300", "#6600cc", "#00cc44"] },
 ] as const;
+
+const PAGE_THEMES: { id: PageTheme; name: string; hint: string }[] = [
+  { id: "light", name: "Claro", hint: "Texto oscuro sobre la arena" },
+  { id: "dark", name: "Oscuro", hint: "Texto claro sobre la arena" },
+  { id: "system", name: "Tema del dispositivo", hint: "Sigue el modo del sistema" },
+];
 
 const FACE_LABELS = { W: "Blanco", Y: "Amarillo", R: "Rojo", O: "Naranja", G: "Verde", B: "Azul" };
 
@@ -80,6 +86,28 @@ export function SettingsMenu({ onChange }: Props) {
               {/* SECCIÓN VISUAL Y TEMAS */}
               <p className="section-title">Aspecto visual y Temas</p>
               <div className="settings-group">
+                <div className="setting-row column">
+                  <span className="row-label">Tema de la página</span>
+                  <div className="page-theme-grid" role="radiogroup" aria-label="Tema de la página">
+                    {PAGE_THEMES.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={settings.pageTheme === t.id}
+                        className={`page-theme-btn ${settings.pageTheme === t.id ? "active" : ""}`}
+                        onClick={() => handleChange("pageTheme", t.id)}
+                      >
+                        <span className={`page-theme-swatch swatch-${t.id}`} aria-hidden="true" />
+                        <span className="page-theme-copy">
+                          <span className="page-theme-name">{t.name}</span>
+                          <span className="page-theme-hint">{t.hint}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="setting-row column">
                   <span className="row-label">Tema de colores</span>
                   <div className="theme-grid">
@@ -164,6 +192,24 @@ export function SettingsMenu({ onChange }: Props) {
                     <span className="value-badge">{(settings.cameraSensitivity * 1000).toFixed(1)}</span>
                   </div>
                   <input type="range" min="0.001" max="0.01" step="0.0005" value={settings.cameraSensitivity} onChange={(e) => handleChange("cameraSensitivity", parseFloat(e.target.value))} className="slider-range" />
+                </div>
+
+                <div className="setting-row column">
+                  <div className="row-header">
+                    <span className="row-label">Sensibilidad de las piezas</span>
+                    <span className="value-badge">{settings.pieceSensitivity.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.4"
+                    max="2.2"
+                    step="0.1"
+                    value={settings.pieceSensitivity}
+                    onChange={(e) => handleChange("pieceSensitivity", parseFloat(e.target.value))}
+                    className="slider-range"
+                    aria-label="Sensibilidad de las piezas"
+                  />
+                  <p className="helper-text">Más alto: el giro responde con menos recorrido del dedo.</p>
                 </div>
                 
                 <div className="setting-row">

@@ -1,7 +1,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { NoToneMapping, ACESFilmicToneMapping, type PerspectiveCamera as ThreeCamera } from "three";
-import { CubeEngine, type CubeApi, type Phase } from "./engine";
+import { CubeEngine, type Phase } from "./engine";
 import type { GameSettings } from "@/components/ui/useSettings";
 
 type Props = {
@@ -36,6 +36,7 @@ function Scene(props: Props) {
     // NUEVO: Inicializar los ajustes del motor INMEDIATAMENTE
     engine.initSettings({
       cameraSensitivity: props.settings.cameraSensitivity,
+      pieceSensitivity: props.settings.pieceSensitivity,
       hapticsEnabled: props.settings.hapticsEnabled,
       theme: props.settings.theme,
       customColors: props.settings.customColors,
@@ -60,6 +61,7 @@ function Scene(props: Props) {
       start: () => engine.start(),
       replay: () => engine.replay(),
       setSensitivity: (val) => engine.setSensitivity(val),
+      setPieceSensitivity: (val) => engine.setPieceSensitivity(val),
       setTheme: (theme) => engine.setTheme(theme),
       setCustomColors: (colors) => engine.setCustomColors(colors), // <-- NUEVO
       setHaptics: (enabled) => engine.setHaptics(enabled), // <-- NUEVO
@@ -104,6 +106,7 @@ function Scene(props: Props) {
     const engine = engineRef.current;
 
     engine.setSensitivity(props.settings.cameraSensitivity);
+    engine.setPieceSensitivity(props.settings.pieceSensitivity);
     engine.setHaptics(props.settings.hapticsEnabled);
 
     if (props.settings.theme === "custom") {
@@ -116,6 +119,7 @@ function Scene(props: Props) {
     engine.updateShadowQuality(props.settings.shadowQuality);
   }, [
     props.settings.cameraSensitivity,
+    props.settings.pieceSensitivity,
     props.settings.hapticsEnabled,
     props.settings.theme,
     props.settings.customColors,
@@ -161,9 +165,10 @@ export type CubeApi = {
   start: () => void;
   replay: () => void;
   setSensitivity: (val: number) => void;
+  setPieceSensitivity: (val: number) => void;
   setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
   setCustomColors: (colors: Record<string, string>) => void;
   setHaptics: (enabled: boolean) => void;
 };
 
-export type { CubeApi, Phase };
+export type { Phase };

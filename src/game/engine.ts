@@ -44,6 +44,7 @@ export type CubeApi = {
   start: () => void;
   replay: () => void;
   setSensitivity: (val: number) => void;
+  setPieceSensitivity: (val: number) => void;
   setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
   setCustomColors: (colors: Record<string, string>) => void;
   setHaptics: (enabled: boolean) => void;
@@ -180,6 +181,7 @@ export class CubeEngine {
 
   private theta = 0.62;
   private sens = 0.0052;
+  private pieceSens = 1;
   private phi = 1.02;
 
   private radius = 12;
@@ -426,8 +428,9 @@ export class CubeEngine {
       const tdx = e.clientX - this.downX;
       const tdy = e.clientY - this.downY;
       const dist = Math.hypot(tdx, tdy);
+      const pieceGate = 11 / clamp(this.pieceSens, 0.35, 2.6);
 
-      if (dist < 11) return;
+      if (dist < pieceGate) return;
 
       const choice = this.chooseAxis(tdx, tdy, dist);
 
@@ -711,7 +714,7 @@ export class CubeEngine {
 
     const pixels = (dx * this.screen.x + dy * this.screen.y) / this.screen.length();
 
-    const dAngle = pixels / pxPerWorld / radius;
+    const dAngle = (pixels / pxPerWorld / radius) * this.pieceSens;
 
     slice.angle = clamp(slice.angle + dAngle, -Math.PI * 1.2, Math.PI * 1.2);
 
@@ -821,11 +824,13 @@ export class CubeEngine {
 
     if (!best) return null;
 
+    const sens = clamp(this.pieceSens, 0.35, 2.6);
+
     if (Math.abs(best.score) < dist * 0.28) {
-      return dist < 30 ? "wait" : null;
+      return dist < 30 / sens ? "wait" : null;
     }
 
-    if (dist < 26 && second > 0 && Math.abs(best.score) < second * 1.25) {
+    if (dist < 26 / sens && second > 0 && Math.abs(best.score) < second * 1.25) {
       return "wait";
     }
 
@@ -1189,6 +1194,11 @@ export class CubeEngine {
     this.sens = val;
   }
 
+  public setPieceSensitivity(val: number) {
+    if (!Number.isFinite(val)) return;
+    this.pieceSens = clamp(val, 0.35, 2.6);
+  }
+
   // Función interna para pintar los colores personalizados
   private applyCustomColors(colors: Record<string, string>) {
     for (const piece of this.pieces) {
@@ -1310,12 +1320,14 @@ export class CubeEngine {
   // NUEVO: Método para inicializar todos los ajustes de golpe
   public initSettings(settings: {
     cameraSensitivity: number;
+    pieceSensitivity?: number;
     hapticsEnabled: boolean;
     theme: string;
     customColors?: Record<string, string>;
     shadowQuality: "low" | "medium" | "high";
   }) {
     this.setSensitivity(settings.cameraSensitivity);
+    this.setPieceSensitivity(settings.pieceSensitivity ?? 1);
     this.setHaptics(settings.hapticsEnabled);
 
     if (settings.theme === "custom" && settings.customColors) {

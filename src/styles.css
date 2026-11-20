@@ -3,10 +3,10 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #ffffff;
+  --color-bg: #f6f3ec;
   --color-surface: #14141c;
   --color-fg: #0f0f0f;
-  --color-muted: #2b271d;
+  --color-muted: #3a3428;
   --color-primary: #f0b429;
   --color-accent: #3ecfc2;
   --color-border: #2c2c36;
@@ -14,6 +14,41 @@
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-secondary: "Arvo";
   --radius: 1.25rem;
+}
+
+:root,
+html[data-resolved-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f6f3ec;
+  --color-fg: #0f0f0f;
+  --color-muted: #3a3428;
+  --arena-scrim: color-mix(in oklab, #f4efe6 62%, transparent);
+  --vignette: color-mix(in oklab, #f4efe6 48%, transparent);
+  --hud-shadow: 0 1px 2px rgba(255, 255, 255, 0.45);
+  --settings-bg: #f2f2f2;
+  --settings-fg: #111111;
+  --settings-card: #ffffff;
+  --settings-muted: #888888;
+  --settings-line: #f0f0f0;
+  --settings-chip: #f9f9f9;
+  --settings-active: #111111;
+}
+
+html[data-resolved-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #07090f;
+  --color-fg: #f6f3ec;
+  --color-muted: #d9d3c7;
+  --arena-scrim: color-mix(in oklab, #07090f 18%, transparent);
+  --vignette: color-mix(in oklab, #000000 58%, transparent);
+  --hud-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+  --settings-bg: #12141a;
+  --settings-fg: #f4f1ea;
+  --settings-card: #1c1f27;
+  --settings-muted: #a8a294;
+  --settings-line: #2a2e38;
+  --settings-chip: #252830;
+  --settings-active: #f0b429;
 }
 
 @layer base {
@@ -42,7 +77,11 @@
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  background: var(--color-bg);
+  background-color: #07090f;
+  background-image: linear-gradient(var(--arena-scrim), var(--arena-scrim)), url("/arena.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: var(--color-fg);
 }
 
@@ -64,9 +103,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 46%, transparent 28%, color-mix(in oklab, var(--color-bg) 55%, transparent) 78%, color-mix(in oklab, var(--color-bg) 78%, transparent) 100%),
-    linear-gradient(to top, color-mix(in oklab, var(--color-bg) 80%, transparent), transparent 32%),
-    linear-gradient(to bottom, color-mix(in oklab, var(--color-bg) 62%, transparent), transparent 24%);
+    radial-gradient(ellipse at 50% 46%, transparent 36%, var(--vignette) 100%),
+    linear-gradient(to top, var(--vignette), transparent 30%),
+    linear-gradient(to bottom, color-mix(in oklab, var(--vignette) 75%, transparent), transparent 22%);
 }
 
 .hud {
@@ -99,6 +138,7 @@
   letter-spacing: 0.28em;
   line-height: 1;
   text-indent: 0.28em;
+  text-shadow: var(--hud-shadow);
 }
 
 .kicker {
@@ -109,6 +149,7 @@
   letter-spacing: 0.42em;
   text-indent: 0.42em;
   text-transform: uppercase;
+  text-shadow: var(--hud-shadow);
 }
 
 .hud-copy {
@@ -125,6 +166,7 @@
   line-height: 1.28;
   letter-spacing: 0.01em;
   text-wrap: balance;
+  text-shadow: var(--hud-shadow);
 }
 
 .armed {
@@ -135,6 +177,7 @@
   letter-spacing: 0.28em;
   text-indent: 0.28em;
   text-transform: uppercase;
+  text-shadow: var(--hud-shadow);
 }
 
 .status {
@@ -144,4 +187,5 @@
   font-size: clamp(0.92rem, 2.7vw, 1.05rem);
   line-height: 1.45;
   text-wrap: balance;
+  text-shadow: var(--hud-shadow);
 }

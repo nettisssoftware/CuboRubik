@@ -45,6 +45,7 @@ function Home() {
   const handleSettingsChange = (newSettings: typeof settings) => {
     if (api.current) {
       api.current.setSensitivity(newSettings.cameraSensitivity);
+      api.current.setPieceSensitivity(newSettings.pieceSensitivity);
       api.current.setHaptics(newSettings.hapticsEnabled);
       
       if (newSettings.theme === "custom") {
@@ -114,6 +115,7 @@ function Home() {
               
               // Aplicamos la configuración guardada en cuanto la API esté lista
               next.setSensitivity(settings.cameraSensitivity);
+              next.setPieceSensitivity(settings.pieceSensitivity);
               next.setHaptics(settings.hapticsEnabled);
               
               if (settings.theme === "custom") {
