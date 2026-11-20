@@ -16,8 +16,11 @@ import {
   Vector3,
   Texture,
   CanvasTexture,
+  WebGLRenderer,
+  PMREMGenerator,
   type Intersection,
 } from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import {
   applyQuarters,
   createSolved,
@@ -227,10 +230,17 @@ export class CubeEngine {
   private hapticsEnabled = true;
   private keyLight: PointLight | null = null;
 
-  constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
+  constructor(opts: {
+    scene: Scene;
+    camera: PerspectiveCamera;
+    renderer: WebGLRenderer;
+    dom: HTMLElement;
+    hooks: Hooks;
+  }) {
     this.camera = opts.camera;
     this.dom = opts.dom;
     this.hooks = opts.hooks;
+    this.renderer = opts.renderer;
 
     this.reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
@@ -275,10 +285,22 @@ export class CubeEngine {
     img.src = "/zun-logo.png";
 
     this.pieces = this.buildPieces();
-    this.buildLights(opts.scene);
     opts.scene.add(this.cubeRoot);
     this.owned.push(this.cubeRoot);
+    this.buildLights(opts.scene);
+    // NUEVO: Crear el Mapa de Entorno (HDRI procedural)
+    const environment = new RoomEnvironment();
+    const pmremGenerator = new PMREMGenerator(this.renderer);
 
+    // Generar la textura PMREM a partir de la habitación
+    const envMap = pmremGenerator.fromScene(environment).texture;
+
+    // Asignar el entorno a la escena (esto es lo que hace que el metal refleje)
+    opts.scene.environment = envMap;
+
+    // Limpieza de recursos (importante para no fugas de memoria)
+    environment.dispose();
+    pmremGenerator.dispose();
     this.syncAll();
     this.hooks.onPhase(this.phase);
     this.publishDebug();
@@ -1032,12 +1054,13 @@ export class CubeEngine {
     for (const [id, hex] of Object.entries(FACE_HEX)) {
       const mat = new MeshPhysicalMaterial({
         color: hex,
-        roughness: 0.2,
-        metalness: 0.0,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.5,
+        metalness: 1.0, // 1. Metal puro (el color base ahora se convierte en el tinte del metal)
+        roughness: 0.08, // 2. Muy bajo para un reflejo casi de espejo (nítido)
+        envMapIntensity: 1.5, // 3. Intensidad del reflejo del entorno (para que el cromo resalte)
+        clearcoat: 1.0, // 4. Capa de barniz para darle ese brillo extra de "cromo pulido"
+        clearcoatRoughness: 0.05,
         emissive: hex,
-        emissiveIntensity: 0.3,
+        emissiveIntensity: 0.05, // 5. Bajamos el brillo propio para que no lave el reflejo metálico
       });
       stickerMats.set(id, mat);
       this.mats.push(mat);

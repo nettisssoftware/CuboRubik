@@ -24,6 +24,7 @@ function Scene(props: Props) {
       scene,
       camera: camera as ThreeCamera,
       dom: gl.domElement,
+      renderer: gl,
       hooks: {
         onPhase: (phase) => propsRef.current.onPhase(phase),
         onTap: () => propsRef.current.onTap(),
@@ -137,7 +138,7 @@ export function CubeStage(props: Props) {
 
   return (
     <Canvas
-      shadows={props.settings.shadowQuality !== "low"} // Desactiva sombras si es "low"
+      shadows={props.settings.shadowQuality === "low" ? false : "percentage"}
       dpr={dpr}
       camera={{ fov: 32, near: 1, far: 50, position: [4, 3.2, 10] }}
       gl={{
