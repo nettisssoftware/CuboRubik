@@ -1087,10 +1087,11 @@ export class CubeEngine {
           mat = new MeshPhysicalMaterial({
             color: "#ffffff",
             map: this.logoTexture,
-            roughness: 0.2,
-            metalness: 0.0,
+            metalness: 1.0, // Mismo metal que las demás piezas
+            roughness: 0.08, // Mismo reflejo nítido
+            envMapIntensity: 1.5, // Misma intensidad de entorno
             clearcoat: 1.0,
-            clearcoatRoughness: 0.5,
+            clearcoatRoughness: 0.05,
           });
 
           // Registrar el material para su gestión.
