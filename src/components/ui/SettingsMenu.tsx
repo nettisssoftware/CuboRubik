@@ -38,8 +38,10 @@ export function SettingsMenu({ onChange }: Props) {
 
   const handleColorChange = (face: keyof FaceColor, color: string) => {
     const newColors = { ...settings.customColors, [face]: color };
-    handleChange("customColors", newColors);
-    handleChange("theme", "custom"); // Forzamos el tema custom al cambiar un color
+    const next = { ...settings, customColors: newColors, theme: "custom" as const };
+    updateSetting("customColors", newColors);
+    updateSetting("theme", "custom");
+    onChange(next);
   };
 
   return (
@@ -235,8 +237,7 @@ export function SettingsMenu({ onChange }: Props) {
                   <button className="danger-text-btn" onClick={() => {
                     if (window.confirm("¿Seguro que quieres borrar todo tu progreso y ajustes? Esta acción no se puede deshacer, recarga la página para ver los cambios.")) {
                       clearAllData();
-                      onChange(useSettings().settings); // Forzamos actualización del padre
-                      window.location.reload(); // Recarga limpia para asegurar el reset
+                      window.location.reload();
                     }
                   }}>
                     Borrar progreso guardado

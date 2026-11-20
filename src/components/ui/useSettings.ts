@@ -1,5 +1,5 @@
 // src/components/ui/useSettings.ts
-import { useState, useEffect } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 export type FaceColor = { R: string; O: string; W: string; Y: string; G: string; B: string };
 
@@ -52,6 +52,16 @@ const DEFAULT_SETTINGS: GameSettings = {
   savedGame: null,
 };
 
+const STORAGE_KEY = "cubix_settings";
+
+function freshDefaults(): GameSettings {
+  return {
+    ...DEFAULT_SETTINGS,
+    customColors: { ...DEFAULT_COLORS },
+    savedGame: null,
+  };
+}
+
 function resolvePageTheme(theme: PageTheme): "light" | "dark" {
   if (theme === "system") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -59,43 +69,68 @@ function resolvePageTheme(theme: PageTheme): "light" | "dark" {
   return theme;
 }
 
-export function useSettings() {
+function readStored(): GameSettings {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return DEFAULT_SETTINGS;
+    const parsed = JSON.parse(saved);
+    const piece = Number(parsed.pieceSensitivity);
+    const pageTheme: PageTheme =
+      parsed.pageTheme === "light" || parsed.pageTheme === "dark" || parsed.pageTheme === "system"
+        ? parsed.pageTheme
+        : DEFAULT_SETTINGS.pageTheme;
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      pageTheme,
+      pieceSensitivity: Number.isFinite(piece) ? piece : DEFAULT_SETTINGS.pieceSensitivity,
+      customColors: { ...DEFAULT_COLORS, ...(parsed.customColors || {}) },
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
 
-  // NUEVO: Estado para saber si ya cargamos los datos
-  const [isLoaded, setIsLoaded] = useState(false); 
-  
-  const [settings, setSettings] = useState<GameSettings>(() => {
-    try {
-      const saved = localStorage.getItem("cubix_settings");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const piece = Number(parsed.pieceSensitivity);
-        const pageTheme: PageTheme =
-          parsed.pageTheme === "light" || parsed.pageTheme === "dark" || parsed.pageTheme === "system"
-            ? parsed.pageTheme
-            : DEFAULT_SETTINGS.pageTheme;
-        // Mergeamos para asegurarnos de que si añadimos nuevas props en el futuro, no rompan el estado
-        return {
-          ...DEFAULT_SETTINGS,
-          ...parsed,
-          pageTheme,
-          pieceSensitivity: Number.isFinite(piece) ? piece : DEFAULT_SETTINGS.pieceSensitivity,
-          customColors: { ...DEFAULT_COLORS, ...(parsed.customColors || {}) },
-        };
-      }
-      return DEFAULT_SETTINGS;
-    } catch {
-      return DEFAULT_SETTINGS;
-    }
-  });
+// Una sola copia para el menú y la partida. Si cada uno tenía la suya,
+// guardar el cubo reescribía el local sin el tema ni la sensibilidad nuevos.
+let current: GameSettings = DEFAULT_SETTINGS;
+const listeners = new Set<() => void>();
+
+if (typeof window !== "undefined") {
+  current = readStored();
+}
+
+function emit() {
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function getSnapshot() {
+  return current;
+}
+
+function getServerSnapshot() {
+  return DEFAULT_SETTINGS;
+}
+
+function commit(next: GameSettings) {
+  current = next;
+  emit();
+}
+
+export function useSettings() {
+  const settings = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // SOLO guardamos si el usuario ha dado su consentimiento
     if (settings.saveProgress) {
-      localStorage.setItem("cubix_settings", JSON.stringify(settings));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     }
     setIsLoaded(true);
-    
   }, [settings]);
 
   useEffect(() => {
@@ -112,19 +147,13 @@ export function useSettings() {
   }, [settings.pageTheme]);
 
   const updateSetting = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    commit({ ...current, [key]: value });
   };
 
-  // NUEVO: Función para borrar todo el progreso y resetear
   const clearAllData = () => {
-    // 1. Borramos la clave de ajustes
-    localStorage.removeItem("cubix_settings");
-    // 2. (Opcional) Si en el futuro guardas el estado del cubo en otra clave, bórrala aquí también:
-    // localStorage.removeItem("cubix_game_state");
-    
-    // 3. Reseteamos el estado de React a fábrica
-    setSettings(DEFAULT_SETTINGS);
+    localStorage.removeItem(STORAGE_KEY);
+    commit(freshDefaults());
   };
 
-  return { settings, updateSetting, clearAllData, isLoaded};
+  return { settings, updateSetting, clearAllData, isLoaded };
 }
