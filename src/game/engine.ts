@@ -8,7 +8,9 @@ import {
   MeshPhysicalMaterial,
   Object3D,
   PerspectiveCamera,
+  PlaneGeometry,
   PointLight,
+  ShadowMaterial,
   Quaternion,
   Raycaster,
   Scene,
@@ -48,6 +50,8 @@ export type CubeApi = {
   setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
   setCustomColors: (colors: Record<string, string>) => void;
   setHaptics: (enabled: boolean) => void;
+  setSfx: (enabled: boolean) => void;
+  setReducedMotion: (enabled: boolean) => void;
 };
 
 type Hooks = {
@@ -139,6 +143,7 @@ export class CubeEngine {
 
   private readonly pieces: Piece[];
   private readonly camera: PerspectiveCamera;
+  private readonly renderer: WebGLRenderer;
   private readonly dom: HTMLElement;
   private readonly hooks: Hooks;
 
@@ -229,6 +234,14 @@ export class CubeEngine {
   } | null = null;
 
   private reduced: boolean;
+  private systemReducedMotion = false;
+  private userReducedMotion = false;
+  private reducedMotionQuery: MediaQueryList | null = null;
+  private handleReducedMotionChange = (event: MediaQueryListEvent) => {
+    this.systemReducedMotion = event.matches;
+    this.reduced = this.userReducedMotion || this.systemReducedMotion;
+  };
+  private sfxEnabled = true;
   private hapticsEnabled = true;
   private turnVibrationEnabled = true;
   private keyLight: PointLight | null = null;
@@ -245,7 +258,11 @@ export class CubeEngine {
     this.hooks = opts.hooks;
     this.renderer = opts.renderer;
 
-    this.reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    this.reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
+    this.systemReducedMotion = this.reducedMotionQuery?.matches ?? false;
+    this.reduced = this.systemReducedMotion;
+    this.reducedMotionQuery?.addEventListener("change", this.handleReducedMotionChange);
+    this.renderer.shadowMap.enabled = true;
 
     // 1. CREACIÓN DEL CANVAS Y TEXTURA BLANCA BASE
     const canvas = document.createElement("canvas");
@@ -341,13 +358,13 @@ export class CubeEngine {
 
   start() {
     if (this.phase !== "ready") return;
-    this.sfx.unlock();
+    if (this.sfxEnabled) this.sfx.unlock();
     this.beginScramble();
   }
 
   replay() {
     if (this.phase !== "won") return;
-    this.sfx.unlock();
+    if (this.sfxEnabled) this.sfx.unlock();
     this.beginScramble();
   }
 
@@ -505,6 +522,7 @@ export class CubeEngine {
     for (const g of this.geos) g.dispose();
     for (const m of this.mats) m.dispose();
 
+    this.reducedMotionQuery?.removeEventListener("change", this.handleReducedMotionChange);
     if (window.__cubix) delete window.__cubix;
   }
 
@@ -546,7 +564,7 @@ export class CubeEngine {
 
   private declareWin() {
     this.phase = "won";
-    this.sfx.win();
+    if (this.sfxEnabled) this.sfx.win();
 
     if (this.hapticsEnabled && typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate([150, 80, 150, 80, 300]);
@@ -641,7 +659,7 @@ export class CubeEngine {
         quarters: anim.quarters,
       });
 
-      if (anim.sound) {
+      if (anim.sound && this.sfxEnabled) {
         this.sfx.turn(this.phase === "scrambling");
       }
 
@@ -1118,11 +1136,15 @@ export class CubeEngine {
         // NUEVO: Añadir el cuerpo negro idéntico al sticker
         const body = new Mesh(gan.body[kind], plastic);
         body.position.z = 0;
+        body.castShadow = true;
+        body.receiveShadow = true;
         face.add(body);
 
         const sticker = new Mesh(gan.sticker[kind], mat);
         sticker.userData.stickerColor = color;
         sticker.position.z = 0;
+        sticker.castShadow = true;
+        sticker.receiveShadow = true;
 
         const offset = 0.94 / 2;
         if (axis === 0) {
@@ -1152,6 +1174,15 @@ export class CubeEngine {
     this.hapticsEnabled = enabled;
   }
 
+  public setSfx(enabled: boolean) {
+    this.sfxEnabled = enabled;
+  }
+
+  public setReducedMotion(enabled: boolean) {
+    this.userReducedMotion = enabled;
+    this.reduced = this.userReducedMotion || this.systemReducedMotion;
+  }
+
   public setTurnVibration(enabled: boolean) {
     this.turnVibrationEnabled = enabled;
   }
@@ -1175,13 +1206,28 @@ export class CubeEngine {
     const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
 
     const key = new PointLight("#ffffff", 45, 50);
-    key.position.set(0, 10, 0);
-
+    key.position.set(-4, 8, 5);
     key.castShadow = true;
-    key.shadow.mapSize.width = 1024;
-    key.shadow.mapSize.height = 1024;
-    key.shadow.bias = -0.001;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.near = 0.5;
+    key.shadow.camera.far = 50;
+    key.shadow.camera.updateProjectionMatrix();
+    key.shadow.bias = -0.0001;
+    key.shadow.normalBias = 0.02;
+    key.shadow.radius = 3;
     this.keyLight = key;
+
+    // Transparent receiver: the arena background remains visible.
+    const floorGeometry = new PlaneGeometry(40, 40);
+    const floorMaterial = new ShadowMaterial({ color: "#000000", opacity: 0.2 });
+    const floor = new Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.56;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    this.owned.push(floor);
+    this.geos.push(floorGeometry);
+    this.mats.push(floorMaterial);
 
     const fill = new DirectionalLight("#9fdfff", 0.48);
     fill.position.set(-7, 3.2, -4);
@@ -1337,6 +1383,8 @@ export class CubeEngine {
     pieceSensitivity?: number;
     hapticsEnabled: boolean;
     turnVibrationEnabled: boolean;
+    sfxEnabled: boolean;
+    reducedMotion: boolean;
     theme: string;
     customColors?: Record<string, string>;
     shadowQuality: "low" | "medium" | "high";
@@ -1345,6 +1393,8 @@ export class CubeEngine {
     this.setPieceSensitivity(settings.pieceSensitivity ?? 1);
     this.setHaptics(settings.hapticsEnabled);
     this.setTurnVibration(settings.turnVibrationEnabled);
+    this.setSfx(settings.sfxEnabled);
+    this.setReducedMotion(settings.reducedMotion);
 
     if (settings.theme === "custom" && settings.customColors) {
       this.setCustomColors(settings.customColors);

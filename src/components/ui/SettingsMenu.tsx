@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useSettings, type FaceColor, type PageTheme } from "@/components/ui/useSettings";
-import { audioManager } from "@/game/audio-manager";
 import "@/components/ui/SettingsMenu.css";
 
 type Props = {
@@ -30,10 +29,6 @@ export function SettingsMenu({ onChange }: Props) {
     const newSettings = { ...settings, [key]: value };
     updateSetting(key, value);
     onChange(newSettings);
-
-    if (key === "musicEnabled") {
-      value ? audioManager.play() : audioManager.pause();
-    }
   };
 
   const handleColorChange = (face: keyof FaceColor, color: string) => {
@@ -69,13 +64,6 @@ export function SettingsMenu({ onChange }: Props) {
               {/* SECCIÓN AUDIO */}
               <p className="section-title">Audio</p>
               <div className="settings-group">
-                <div className="setting-row">
-                  <span>Música de fondo</span>
-                  <label className="switch">
-                    <input type="checkbox" checked={settings.musicEnabled} onChange={(e) => handleChange("musicEnabled", e.target.checked)} />
-                    <span className="slider round"></span>
-                  </label>
-                </div>
                 <div className="setting-row">
                   <span>Efectos de sonido</span>
                   <label className="switch">
@@ -197,7 +185,7 @@ export function SettingsMenu({ onChange }: Props) {
                 <div className="setting-row">
                   <div className="row-text">
                     <span>Modo ahorro de batería</span>
-                    <p className="helper-text">Reduce la nitidez para alargar la batería y evitar sobrecalentamiento.</p>
+                    <p className="helper-text">Limita la resolución de renderizado para reducir el trabajo gráfico.</p>
                   </div>
                   <label className="switch">
                     <input type="checkbox" checked={settings.batterySaver} onChange={(e) => handleChange("batterySaver", e.target.checked)} />

@@ -39,6 +39,8 @@ function Scene(props: Props) {
       pieceSensitivity: props.settings.pieceSensitivity,
       hapticsEnabled: props.settings.hapticsEnabled,
       turnVibrationEnabled: props.settings.turnVibrationEnabled,
+      sfxEnabled: props.settings.sfxEnabled,
+      reducedMotion: props.settings.reducedMotion,
       theme: props.settings.theme,
       customColors: props.settings.customColors,
       shadowQuality: props.settings.shadowQuality,
@@ -66,6 +68,8 @@ function Scene(props: Props) {
       setTheme: (theme) => engine.setTheme(theme),
       setCustomColors: (colors) => engine.setCustomColors(colors), // <-- NUEVO
       setHaptics: (enabled) => engine.setHaptics(enabled), // <-- NUEVO
+      setSfx: (enabled) => engine.setSfx(enabled),
+      setReducedMotion: (enabled) => engine.setReducedMotion(enabled),
     });
 
     
@@ -103,6 +107,10 @@ function Scene(props: Props) {
 
   // NUEVO: Efecto para actualizar el motor cuando cambian los ajustes
   useEffect(() => {
+    gl.toneMapping = props.settings.theme === "neon" ? ACESFilmicToneMapping : NoToneMapping;
+  }, [gl, props.settings.theme]);
+
+  useEffect(() => {
     if (!engineRef.current) return;
     const engine = engineRef.current;
 
@@ -110,6 +118,8 @@ function Scene(props: Props) {
     engine.setPieceSensitivity(props.settings.pieceSensitivity);
     engine.setHaptics(props.settings.hapticsEnabled);
     engine.setTurnVibration(props.settings.turnVibrationEnabled);
+    engine.setSfx(props.settings.sfxEnabled);
+    engine.setReducedMotion(props.settings.reducedMotion);
 
     if (props.settings.theme === "custom") {
       engine.setCustomColors(props.settings.customColors);
@@ -124,6 +134,8 @@ function Scene(props: Props) {
     props.settings.pieceSensitivity,
     props.settings.hapticsEnabled,
     props.settings.turnVibrationEnabled,
+    props.settings.sfxEnabled,
+    props.settings.reducedMotion,
     props.settings.theme,
     props.settings.customColors,
     props.settings.shadowQuality,
@@ -152,8 +164,7 @@ export function CubeStage(props: Props) {
         antialias: true,
         alpha: true,
         // Tone Mapping dinámico
-        toneMapping: props.settings.theme === "neon" ? ACESFilmicToneMapping : NoToneMapping,
-        powerPreference: props.settings.batterySaver ? "default" : "high-performance",
+        toneMapping: NoToneMapping,
       }}
       onCreated={({ gl }) => {
         gl.setClearColor(0x000000, 0);
@@ -172,6 +183,8 @@ export type CubeApi = {
   setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
   setCustomColors: (colors: Record<string, string>) => void;
   setHaptics: (enabled: boolean) => void;
+  setSfx: (enabled: boolean) => void;
+  setReducedMotion: (enabled: boolean) => void;
 };
 
 export type { Phase };

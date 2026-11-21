@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import type { CubeApi, Phase } from "@/game/CubeStage";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { useSettings } from "@/components/ui/useSettings";
-import { audioManager } from "@/game/audio-manager";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -34,31 +33,20 @@ function Home() {
     };
   }, []);
 
-  // 2. Lógica de la música al iniciar
-  useEffect(() => {
-    if (settings.musicEnabled) {
-      audioManager.play();
-    }
-  }, [settings.musicEnabled]);
-
-  // 3. Función que recibe los cambios del menú en tiempo real
+  // Apply menu changes to the game engine in real time
   const handleSettingsChange = (newSettings: typeof settings) => {
     if (api.current) {
       api.current.setSensitivity(newSettings.cameraSensitivity);
       api.current.setPieceSensitivity(newSettings.pieceSensitivity);
       api.current.setHaptics(newSettings.hapticsEnabled);
-      
+      api.current.setSfx(newSettings.sfxEnabled);
+      api.current.setReducedMotion(newSettings.reducedMotion);
+
       if (newSettings.theme === "custom") {
         api.current.setCustomColors(newSettings.customColors);
       } else {
         api.current.setTheme(newSettings.theme);
       }
-    }
-    
-    if (newSettings.musicEnabled) {
-      audioManager.play();
-    } else {
-      audioManager.pause();
     }
   };
 
@@ -117,7 +105,9 @@ function Home() {
               next.setSensitivity(settings.cameraSensitivity);
               next.setPieceSensitivity(settings.pieceSensitivity);
               next.setHaptics(settings.hapticsEnabled);
-              
+              next.setSfx(settings.sfxEnabled);
+              next.setReducedMotion(settings.reducedMotion);
+
               if (settings.theme === "custom") {
                 next.setCustomColors(settings.customColors);
               } else {
