@@ -145,7 +145,7 @@ export function CubeStage(props: Props) {
 
   return (
     <Canvas
-      shadows={props.settings.shadowQuality === "low" ? false : "percentage"}
+      shadows="percentage"
       dpr={dpr}
       camera={{ fov: 32, near: 1, far: 50, position: [4, 3.2, 10] }}
       gl={{
