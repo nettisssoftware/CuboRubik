@@ -83,6 +83,13 @@ export function SettingsMenu({ onChange }: Props) {
                     <span className="slider round"></span>
                   </label>
                 </div>
+                <div className="setting-row">
+                  <span>Vibrar al girar una pieza</span>
+                  <label className="switch">
+                    <input type="checkbox" checked={settings.turnVibrationEnabled} onChange={(e) => handleChange("turnVibrationEnabled", e.target.checked)} />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
               </div>
 
               {/* SECCIÓN VISUAL Y TEMAS */}

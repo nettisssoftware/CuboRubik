@@ -38,6 +38,7 @@ function Scene(props: Props) {
       cameraSensitivity: props.settings.cameraSensitivity,
       pieceSensitivity: props.settings.pieceSensitivity,
       hapticsEnabled: props.settings.hapticsEnabled,
+      turnVibrationEnabled: props.settings.turnVibrationEnabled,
       theme: props.settings.theme,
       customColors: props.settings.customColors,
       shadowQuality: props.settings.shadowQuality,
@@ -108,6 +109,7 @@ function Scene(props: Props) {
     engine.setSensitivity(props.settings.cameraSensitivity);
     engine.setPieceSensitivity(props.settings.pieceSensitivity);
     engine.setHaptics(props.settings.hapticsEnabled);
+    engine.setTurnVibration(props.settings.turnVibrationEnabled);
 
     if (props.settings.theme === "custom") {
       engine.setCustomColors(props.settings.customColors);
@@ -121,6 +123,7 @@ function Scene(props: Props) {
     props.settings.cameraSensitivity,
     props.settings.pieceSensitivity,
     props.settings.hapticsEnabled,
+    props.settings.turnVibrationEnabled,
     props.settings.theme,
     props.settings.customColors,
     props.settings.shadowQuality,

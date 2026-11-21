@@ -230,6 +230,7 @@ export class CubeEngine {
 
   private reduced: boolean;
   private hapticsEnabled = true;
+  private turnVibrationEnabled = true;
   private keyLight: PointLight | null = null;
 
   constructor(opts: {
@@ -642,6 +643,15 @@ export class CubeEngine {
 
       if (anim.sound) {
         this.sfx.turn(this.phase === "scrambling");
+      }
+
+      if (
+        anim.user &&
+        this.turnVibrationEnabled &&
+        typeof navigator !== "undefined" &&
+        typeof navigator.vibrate === "function"
+      ) {
+        navigator.vibrate(12);
       }
 
       if (anim.user && !this.announcedMove) {
@@ -1142,6 +1152,10 @@ export class CubeEngine {
     this.hapticsEnabled = enabled;
   }
 
+  public setTurnVibration(enabled: boolean) {
+    this.turnVibrationEnabled = enabled;
+  }
+
   public updateShadowQuality(quality: "low" | "medium" | "high") {
     if (!this.keyLight) return;
 
@@ -1322,6 +1336,7 @@ export class CubeEngine {
     cameraSensitivity: number;
     pieceSensitivity?: number;
     hapticsEnabled: boolean;
+    turnVibrationEnabled: boolean;
     theme: string;
     customColors?: Record<string, string>;
     shadowQuality: "low" | "medium" | "high";
@@ -1329,6 +1344,7 @@ export class CubeEngine {
     this.setSensitivity(settings.cameraSensitivity);
     this.setPieceSensitivity(settings.pieceSensitivity ?? 1);
     this.setHaptics(settings.hapticsEnabled);
+    this.setTurnVibration(settings.turnVibrationEnabled);
 
     if (settings.theme === "custom" && settings.customColors) {
       this.setCustomColors(settings.customColors);

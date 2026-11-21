@@ -18,6 +18,7 @@ export type GameSettings = {
   shadowQuality: "low" | "medium" | "high";
   batterySaver: boolean;
   hapticsEnabled: boolean;
+  turnVibrationEnabled: boolean;
   customColors: FaceColor;
 
    savedGame: {
@@ -48,6 +49,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   shadowQuality: "medium",
   batterySaver: false,
   hapticsEnabled: true,
+  turnVibrationEnabled: true,
   customColors: DEFAULT_COLORS,
   savedGame: null,
 };
