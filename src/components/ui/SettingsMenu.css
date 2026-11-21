@@ -412,3 +412,15 @@ input:checked + .slider.round:before {
   width: 100%;
   text-align: left;
 }
+
+.shadow-quality-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--settings-muted, #888);
+  font-size: 0.78rem;
+}
+
+.shadow-warning {
+  color: #d93025;
+}
