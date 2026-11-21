@@ -151,6 +151,30 @@ export function SettingsMenu({ onChange }: Props) {
                 </div>
               </div>
 
+              {/* PERSONALIZACIÓN FÍSICA DEL CUBO */}
+              <p className="section-title">Personalización del cubo</p>
+              <div className="settings-group">
+                <div className="setting-row column">
+                  <span className="row-label">Material de las superficies</span>
+                  <select className="custom-select" value={settings.cubeMaterial} onChange={(e) => handleChange("cubeMaterial", e.target.value as typeof settings.cubeMaterial)} aria-label="Material del cubo">
+                    <option value="matte">Plástico mate</option>
+                    <option value="glossy">Plástico brillante</option>
+                    <option value="chrome">Metal cromado</option>
+                    <option value="translucent">Plástico translúcido</option>
+                  </select>
+                  <p className="helper-text">Modifica la respuesta de la superficie a la luz, sin alterar las piezas.</p>
+                </div>
+                <div className="setting-row column">
+                  <span className="row-label">Acabado superficial</span>
+                  <select className="custom-select" value={settings.cubeSurface} onChange={(e) => handleChange("cubeSurface", e.target.value as typeof settings.cubeSurface)} aria-label="Acabado superficial del cubo">
+                    <option value="smooth">Liso</option>
+                    <option value="textured">Texturizado</option>
+                    <option value="microrelief">Microrelieve</option>
+                  </select>
+                  <p className="helper-text">El relieve es visual y se calcula mediante una textura; la geometría y las dimensiones permanecen intactas.</p>
+                </div>
+              </div>
+
               {/* SECCIÓN RENDIMIENTO Y CALIDAD */}
               <p className="section-title">Rendimiento y calidad</p>
               <div className="settings-group">

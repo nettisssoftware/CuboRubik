@@ -1,6 +1,8 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 export type FaceColor = { R: string; O: string; W: string; Y: string; G: string; B: string };
 export type PageTheme = "light" | "dark" | "system";
+export type CubeMaterial = "matte" | "glossy" | "chrome" | "translucent";
+export type CubeSurface = "smooth" | "textured" | "microrelief";
 export type GameSettings = {
   sfxEnabled: boolean;
   reducedMotion: boolean;
@@ -13,6 +15,8 @@ export type GameSettings = {
   batterySaver: boolean;
   hapticsEnabled: boolean;
   turnVibrationEnabled: boolean;
+  cubeMaterial: CubeMaterial;
+  cubeSurface: CubeSurface;
   customColors: FaceColor;
   savedGame: { history: { axis: 0 | 1 | 2; layer: -1 | 0 | 1; quarters: number }[]; phase: "playing" | "won" } | null;
 };
@@ -23,6 +27,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   sfxEnabled: true, reducedMotion: false, cameraSensitivity: 0.0052, pieceSensitivity: 1,
   pageTheme: "system", theme: "classic", saveProgress: true, shadowQuality: "medium",
   batterySaver: false, hapticsEnabled: true, turnVibrationEnabled: true,
+  cubeMaterial: "matte", cubeSurface: "smooth",
   customColors: DEFAULT_COLORS, savedGame: null,
 };
 const STORAGE_KEY = "cubix_settings";
@@ -59,6 +64,8 @@ function readStored(): GameSettings {
       batterySaver: parsed.batterySaver,
       hapticsEnabled: parsed.hapticsEnabled,
       turnVibrationEnabled: parsed.turnVibrationEnabled,
+      cubeMaterial: parsed.cubeMaterial,
+      cubeSurface: parsed.cubeSurface,
       customColors: parsed.customColors,
     };
     const legacySavedGame = parsed.savedGame;
@@ -88,6 +95,8 @@ function readStored(): GameSettings {
         ? storedSettings.pageTheme : DEFAULT_SETTINGS.pageTheme;
     return {
       ...DEFAULT_SETTINGS, ...storedSettings, saveProgress, pageTheme,
+      cubeMaterial: ["matte", "glossy", "chrome", "translucent"].includes(storedSettings.cubeMaterial) ? storedSettings.cubeMaterial : DEFAULT_SETTINGS.cubeMaterial,
+      cubeSurface: ["smooth", "textured", "microrelief"].includes(storedSettings.cubeSurface) ? storedSettings.cubeSurface : DEFAULT_SETTINGS.cubeSurface,
       pieceSensitivity: Number.isFinite(piece) ? piece : DEFAULT_SETTINGS.pieceSensitivity,
       customColors: { ...DEFAULT_COLORS, ...(storedSettings.customColors || {}) },
       savedGame,

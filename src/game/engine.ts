@@ -20,6 +20,7 @@ import {
   CanvasTexture,
   WebGLRenderer,
   PMREMGenerator,
+  RepeatWrapping,
   type Intersection,
 } from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
@@ -52,6 +53,8 @@ export type CubeApi = {
   setHaptics: (enabled: boolean) => void;
   setSfx: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
+  setCubeMaterial: (material: "matte" | "glossy" | "chrome" | "translucent") => void;
+  setCubeSurface: (surface: "smooth" | "textured" | "microrelief") => void;
 };
 
 type Hooks = {
@@ -168,12 +171,15 @@ export class CubeEngine {
 
   private currentTheme: string = "classic";
   private currentCustomColors: Record<string, string> | null = null;
+  private cubeMaterial: "matte" | "glossy" | "chrome" | "translucent" = "matte";
+  private cubeSurface: "smooth" | "textured" | "microrelief" = "smooth";
 
   private queue: Move[] = [];
   private anim: Anim | null = null;
 
   // Textura del logo protegida
   private readonly logoTexture: Texture;
+  private readonly surfaceTexture: CanvasTexture;
 
   private history: {
     axis: Axis;
@@ -282,6 +288,7 @@ export class CubeEngine {
     this.logoTexture.offset.set(0.5, 0.5);
 
     this.logoTexture.needsUpdate = true;
+    this.surfaceTexture = createSurfaceTexture();
 
     // 2. CARGA ASÍNCRONA DEL LOGO
     const img = new Image();
@@ -521,6 +528,8 @@ export class CubeEngine {
 
     for (const g of this.geos) g.dispose();
     for (const m of this.mats) m.dispose();
+    this.surfaceTexture.dispose();
+    this.logoTexture.dispose();
 
     this.reducedMotionQuery?.removeEventListener("change", this.handleReducedMotionChange);
     if (window.__cubix) delete window.__cubix;
@@ -1078,7 +1087,7 @@ export class CubeEngine {
 
     const plastic = new MeshPhysicalMaterial({
       color: "#000000",
-      roughness: 0.55,
+      roughness: 0.82,
       metalness: 0.0,
     });
     this.mats.push(plastic);
@@ -1087,13 +1096,12 @@ export class CubeEngine {
     for (const [id, hex] of Object.entries(FACE_HEX)) {
       const mat = new MeshPhysicalMaterial({
         color: hex,
-        metalness: 1.0, // 1. Metal puro (el color base ahora se convierte en el tinte del metal)
-        roughness: 0.08, // 2. Muy bajo para un reflejo casi de espejo (nítido)
-        envMapIntensity: 1.5, // 3. Intensidad del reflejo del entorno (para que el cromo resalte)
-        clearcoat: 1.0, // 4. Capa de barniz para darle ese brillo extra de "cromo pulido"
-        clearcoatRoughness: 0.05,
+        metalness: 0,
+        roughness: 0.82,
+        clearcoat: 0.05,
+        clearcoatRoughness: 0.5,
         emissive: hex,
-        emissiveIntensity: 0.05, // 5. Bajamos el brillo propio para que no lave el reflejo metálico
+        emissiveIntensity: 0.025,
       });
       stickerMats.set(id, mat);
       this.mats.push(mat);
@@ -1120,11 +1128,11 @@ export class CubeEngine {
           mat = new MeshPhysicalMaterial({
             color: "#ffffff",
             map: this.logoTexture,
-            metalness: 1.0, // Mismo metal que las demás piezas
-            roughness: 0.08, // Mismo reflejo nítido
-            envMapIntensity: 1.5, // Misma intensidad de entorno
-            clearcoat: 1.0,
-            clearcoatRoughness: 0.05,
+            metalness: 0,
+            roughness: 0.82,
+            envMapIntensity: 0.35,
+            clearcoat: 0.05,
+            clearcoatRoughness: 0.5,
           });
 
           // Registrar el material para su gestión.
@@ -1388,6 +1396,8 @@ export class CubeEngine {
     theme: string;
     customColors?: Record<string, string>;
     shadowQuality: "low" | "medium" | "high";
+    cubeMaterial?: "matte" | "glossy" | "chrome" | "translucent";
+    cubeSurface?: "smooth" | "textured" | "microrelief";
   }) {
     this.setSensitivity(settings.cameraSensitivity);
     this.setPieceSensitivity(settings.pieceSensitivity ?? 1);
@@ -1403,7 +1413,80 @@ export class CubeEngine {
     }
 
     this.updateShadowQuality(settings.shadowQuality);
+    this.setCubeMaterial(settings.cubeMaterial ?? "matte");
+    this.setCubeSurface(settings.cubeSurface ?? "smooth");
   }
+
+  public setCubeMaterial(material: "matte" | "glossy" | "chrome" | "translucent") {
+    this.cubeMaterial = material;
+    this.applyCubeAppearance();
+  }
+
+  public setCubeSurface(surface: "smooth" | "textured" | "microrelief") {
+    this.cubeSurface = surface;
+    this.applyCubeAppearance();
+  }
+
+  private applyCubeAppearance() {
+    const materialProfiles = {
+      matte: { metalness: 0, roughness: 0.82, envMapIntensity: 0.35, clearcoat: 0.05, clearcoatRoughness: 0.5, transmission: 0, thickness: 0 },
+      glossy: { metalness: 0, roughness: 0.18, envMapIntensity: 0.8, clearcoat: 0.9, clearcoatRoughness: 0.1, transmission: 0, thickness: 0 },
+      chrome: { metalness: 1, roughness: 0.07, envMapIntensity: 1.5, clearcoat: 1, clearcoatRoughness: 0.05, transmission: 0, thickness: 0 },
+      translucent: { metalness: 0, roughness: 0.2, envMapIntensity: 0.9, clearcoat: 0.65, clearcoatRoughness: 0.12, transmission: 0.72, thickness: 0.45 },
+    };
+    const surfaceProfiles = {
+      smooth: { bumpScale: 0, roughnessOffset: 0 },
+      textured: { bumpScale: 0.012, roughnessOffset: 0.06 },
+      microrelief: { bumpScale: 0.028, roughnessOffset: 0.1 },
+    };
+    const profile = materialProfiles[this.cubeMaterial];
+    const surface = surfaceProfiles[this.cubeSurface];
+    for (const piece of this.pieces) {
+      piece.mesh.traverse((object) => {
+        if (!(object instanceof Mesh) || !object.userData.stickerColor) return;
+        const mat = object.material;
+        if (!(mat instanceof MeshPhysicalMaterial)) return;
+        mat.metalness = profile.metalness;
+        mat.roughness = Math.min(1, profile.roughness + surface.roughnessOffset);
+        mat.envMapIntensity = profile.envMapIntensity;
+        mat.clearcoat = profile.clearcoat;
+        mat.clearcoatRoughness = profile.clearcoatRoughness;
+        mat.transmission = profile.transmission;
+        mat.thickness = profile.thickness;
+        mat.bumpMap = this.cubeSurface === "smooth" ? null : this.surfaceTexture;
+        mat.bumpScale = surface.bumpScale;
+        mat.needsUpdate = true;
+      });
+    }
+  }
+}
+
+function createSurfaceTexture(): CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo crear la textura superficial");
+  const image = ctx.createImageData(128, 128);
+  for (let y = 0; y < 128; y++) {
+    for (let x = 0; x < 128; x++) {
+      const i = (y * 128 + x) * 4;
+      const wave = Math.sin(x * 0.47 + Math.sin(y * 0.19) * 2.2) * Math.cos(y * 0.39 + x * 0.07);
+      const grain = Math.sin(x * 1.71 + y * 2.13) * Math.cos(y * 1.37 - x * 1.91);
+      const value = Math.max(0, Math.min(255, 128 + wave * 34 + grain * 15));
+      image.data[i] = value;
+      image.data[i + 1] = value;
+      image.data[i + 2] = value;
+      image.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.repeat.set(3, 3);
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function pieceFromHit(hit: Intersection, pieces: Piece[]): Piece | null {

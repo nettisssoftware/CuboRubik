@@ -41,6 +41,8 @@ function Home() {
       api.current.setHaptics(newSettings.hapticsEnabled);
       api.current.setSfx(newSettings.sfxEnabled);
       api.current.setReducedMotion(newSettings.reducedMotion);
+      api.current.setCubeMaterial(newSettings.cubeMaterial);
+      api.current.setCubeSurface(newSettings.cubeSurface);
 
       if (newSettings.theme === "custom") {
         api.current.setCustomColors(newSettings.customColors);
@@ -107,6 +109,8 @@ function Home() {
               next.setHaptics(settings.hapticsEnabled);
               next.setSfx(settings.sfxEnabled);
               next.setReducedMotion(settings.reducedMotion);
+              next.setCubeMaterial(settings.cubeMaterial);
+              next.setCubeSurface(settings.cubeSurface);
 
               if (settings.theme === "custom") {
                 next.setCustomColors(settings.customColors);

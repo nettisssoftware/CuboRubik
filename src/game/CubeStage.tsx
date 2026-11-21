@@ -44,6 +44,8 @@ function Scene(props: Props) {
       theme: props.settings.theme,
       customColors: props.settings.customColors,
       shadowQuality: props.settings.shadowQuality,
+      cubeMaterial: props.settings.cubeMaterial,
+      cubeSurface: props.settings.cubeSurface,
     });
 
     // NUEVO: Configurar el guardado automático
@@ -70,6 +72,8 @@ function Scene(props: Props) {
       setHaptics: (enabled) => engine.setHaptics(enabled), // <-- NUEVO
       setSfx: (enabled) => engine.setSfx(enabled),
       setReducedMotion: (enabled) => engine.setReducedMotion(enabled),
+      setCubeMaterial: (material) => engine.setCubeMaterial(material),
+      setCubeSurface: (surface) => engine.setCubeSurface(surface),
     });
 
     
@@ -129,6 +133,8 @@ function Scene(props: Props) {
 
     // Actualizar calidad de sombras
     engine.updateShadowQuality(props.settings.shadowQuality);
+    engine.setCubeMaterial(props.settings.cubeMaterial);
+    engine.setCubeSurface(props.settings.cubeSurface);
   }, [
     props.settings.cameraSensitivity,
     props.settings.pieceSensitivity,
@@ -139,6 +145,8 @@ function Scene(props: Props) {
     props.settings.theme,
     props.settings.customColors,
     props.settings.shadowQuality,
+    props.settings.cubeMaterial,
+    props.settings.cubeSurface,
   ]);
 
   useFrame((_, dt) => {
@@ -185,6 +193,8 @@ export type CubeApi = {
   setHaptics: (enabled: boolean) => void;
   setSfx: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
+  setCubeMaterial: (material: "matte" | "glossy" | "chrome" | "translucent") => void;
+  setCubeSurface: (surface: "smooth" | "textured" | "microrelief") => void;
 };
 
 export type { Phase };
