@@ -168,16 +168,30 @@ export function SettingsMenu({ onChange }: Props) {
               <div className="settings-group">
                 <div className="setting-row column">
                   <span className="row-label">Calidad de sombras</span>
-                  <select value={settings.shadowQuality} onChange={(e) => handleChange("shadowQuality", e.target.value)} className="custom-select">
-                    <option value="low">Baja</option>
-                    <option value="medium">Media (Recomendada)</option>
-                    <option value="high">Alta</option>
-                  </select>
-                  <p className="helper-text">
-                    {settings.shadowQuality === "high" && "⚠️ Puede causar caídas de FPS en móviles de gama baja."}
-                    {settings.shadowQuality === "medium" && "Equilibrio ideal entre rendimiento y calidad visual."}
-                    {settings.shadowQuality === "low" && "Las sombras se verán pixeladas. Mejora el rendimiento."}
-                  </p>
+                  <div className="shadow-quality-labels" aria-hidden="true">
+                    <span>Baja</span>
+                    <span>Media</span>
+                    <span>Alta</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="1"
+                    value={settings.shadowQuality === "low" ? 0 : settings.shadowQuality === "medium" ? 1 : 2}
+                    onChange={(e) => handleChange("shadowQuality", (["low", "medium", "high"] as const)[Number(e.target.value)])}
+                    className="slider-range"
+                    aria-label="Calidad de sombras"
+                  />
+                  {settings.shadowQuality === "high" ? (
+                    <p className="helper-text shadow-warning">La calidad alta puede reducir los FPS en dispositivos móviles de gama baja.</p>
+                  ) : (
+                    <p className="helper-text">
+                      {settings.shadowQuality === "medium"
+                        ? "Equilibrio entre rendimiento y calidad visual."
+                        : "Usa una resolución menor para mejorar el rendimiento."}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="setting-row">
