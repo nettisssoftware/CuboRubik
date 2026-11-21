@@ -1160,14 +1160,14 @@ export class CubeEngine {
     if (!this.keyLight) return;
 
     const size = quality === "high" ? 2048 : quality === "medium" ? 1024 : 512;
+    const shadow = this.keyLight.shadow;
 
-    if (this.keyLight.shadow.map) {
-      this.keyLight.shadow.map.setSize(size, size);
-      this.keyLight.shadow.map.dispose();
-      this.keyLight.shadow.map = null;
-    }
-    this.keyLight.shadow.mapSize.set(size, size);
-    this.keyLight.shadow.needsUpdate = true;
+    // Liberar el mapa anterior para que Three.js lo vuelva a crear
+    // con la nueva resolución en el siguiente render de sombras.
+    shadow.map?.dispose();
+    shadow.map = null;
+    shadow.mapSize.set(size, size);
+    shadow.needsUpdate = true;
   }
 
   private buildLights(scene: Scene) {
