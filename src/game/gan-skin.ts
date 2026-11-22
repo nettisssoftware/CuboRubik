@@ -15,8 +15,13 @@ export type GanGeos = {
   all: BufferGeometry[];
 };
 
-const SIZE = 0.94; // Ancho total de la pieza (y del sticker)
-const DEPTH = 0.75; // Profundidad total de la pieza negra
+const SIZE = 0.94; // Silueta compartida por el cuerpo y el sticker
+const DEPTH = 0.75; // Profundidad del cuerpo negro
+const STICKER_DEPTH = 0.05;
+const BEVEL_THICKNESS = 0.015;
+const BEVEL_SIZE = 0.012;
+const BEVEL_SEGMENTS = 2;
+const BODY_CLEARANCE = 0.005; // Holgura técnica entre el cuerpo y la cara posterior del sticker
 const R = 0.23; // Radio de las esquinas redondeadas
 const SAG = 0.18; // Profundidad del "mordisco" cóncavo de las aristas
 const CORNER_RADIUS = 0.04; // Radio uniforme de las esquinas
@@ -166,32 +171,36 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
-    bevelThickness: 0.01,   // Bisel sutil para el cuerpo
-    bevelSize: 0.015,
-    bevelSegments: 1,
+    bevelThickness: BEVEL_THICKNESS,
+    bevelSize: BEVEL_SIZE,
+    bevelSegments: BEVEL_SEGMENTS,
     curveSegments: 4,
   });
 
-  // Mantener el cuerpo detrás del sticker, con una separación de 0.005
-  // entre sus extensiones de bisel para evitar superficies superpuestas.
-  geo.translate(0, 0, -depth - 0.095);
+  // ExtrudeGeometry llega hasta depth + bevelThickness en su cara frontal.
+  // El cuerpo termina detrás de la cara posterior real del sticker.
+  const stickerBackZ =
+    -(STICKER_DEPTH + BEVEL_THICKNESS) - BEVEL_THICKNESS;
+  const bodyFrontZ = stickerBackZ - BODY_CLEARANCE;
+  const bodyTranslateZ = bodyFrontZ - depth - BEVEL_THICKNESS;
 
+  geo.translate(0, 0, bodyTranslateZ);
   return geo;
 }
 
 function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
-    depth: 0.05,            // Grosor total reducido a 5 unidades (0.05)
-    bevelEnabled: true,     // Bisel activado
-    bevelThickness: 0.015,  // Grosor del bisel frontal y posterior
-    bevelSize: 0.012,       // Expansión lateral contenida
-    bevelSegments: 2,       // Se mantiene para que la curva sea suave
+    depth: STICKER_DEPTH,
+    bevelEnabled: true,
+    bevelThickness: BEVEL_THICKNESS,
+    bevelSize: BEVEL_SIZE,
+    bevelSegments: BEVEL_SEGMENTS,
     curveSegments: 4,
   });
-  
-  // Posicionar el sticker para que su extensión de bisel llegue a Z=0.
-  geo.translate(0, 0, -0.065); 
+
+  // La cara frontal del bisel queda exactamente en Z=0.
+  geo.translate(0, 0, -(STICKER_DEPTH + BEVEL_THICKNESS));
   return geo;
 }
 
