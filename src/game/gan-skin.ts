@@ -19,6 +19,7 @@ const SIZE = 0.94; // Ancho total de la pieza (y del sticker)
 const DEPTH = 0.75; // Profundidad total de la pieza negra
 const R = 0.23; // Radio de las esquinas redondeadas
 const SAG = 0.18; // Profundidad del "mordisco" cóncavo de las aristas
+const CORNER_RADIUS = 0.04; // Radio uniforme de las esquinas
 
 type Pt = [number, number];
 
@@ -26,7 +27,6 @@ export function createGanGeometries(): GanGeos {
   // 1. Generar las siluetas 2D
   const loopCenter = roundRect(SIZE, R, R, R, R);
   const loopEdge = edgeBulge(SIZE, SAG);
-  const CORNER_RADIUS = 0.04; // Radio de 5 para el borde radial de las 8 esquinas (ajusta a tu gusto)
   const loopCorner = roundRect(SIZE, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS);
 
   // 2. Crear las piezas negras (extruidas en 3D)
@@ -132,9 +132,8 @@ function edgeBulge(a: number, sag: number): Pt[] {
     push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
   }
   
-  // 2. NUEVO: Redondeo de las esquinas exteriores (radio 0.08)
-  // Usamos el mismo valor que CORNER_RADIUS de tu código.
-  const cornerRadius = 0.08;
+  // 2. Redondeo de las esquinas exteriores con el mismo radio que los corners.
+  const cornerRadius = CORNER_RADIUS;
 
   // Borde derecho: sube, pero se redondea en la esquina superior
   push(loop, half, half - cornerRadius);
@@ -168,16 +167,14 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
     depth,
     bevelEnabled: true,
     bevelThickness: 0.01,   // Bisel sutil para el cuerpo
-    bevelSize: 0.01,
+    bevelSize: 0.015,
     bevelSegments: 1,
     curveSegments: 4,
   });
 
-  // CORRECCIÓN MATEMÁTICA:
-  // El sticker termina en Z = -0.10. 
-  // Queremos que el cuerpo negro termine en Z = -0.11 (1 unidad de separación).
-  // Como la geometría se extruye hacia atrás, lo trasladamos a -depth - 0.01.
-  geo.translate(0, 0, -depth - 0.01);
+  // Mantener el cuerpo detrás del sticker, con una separación de 0.005
+  // entre sus extensiones de bisel para evitar superficies superpuestas.
+  geo.translate(0, 0, -depth - 0.095);
 
   return geo;
 }
@@ -187,14 +184,14 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth: 0.05,            // Grosor total reducido a 5 unidades (0.05)
     bevelEnabled: true,     // Bisel activado
-    bevelThickness: 0.015,  // Bisel mucho más discreto (antes 0.06)
-    bevelSize: 0.015,       // Expansión lateral discreta (antes 0.04)
+    bevelThickness: 0.015,  // Grosor del bisel frontal y posterior
+    bevelSize: 0.012,       // Expansión lateral contenida
     bevelSegments: 2,       // Se mantiene para que la curva sea suave
     curveSegments: 4,
   });
   
-  // Lo hundimos para que su cara frontal quede al ras (Z=0)
-  geo.translate(0, 0, -0.05); 
+  // Posicionar el sticker para que su extensión de bisel llegue a Z=0.
+  geo.translate(0, 0, -0.065); 
   return geo;
 }
 
