@@ -94,6 +94,13 @@ export function SettingsMenu({ settings, onChange, onClear }: Props) {
                   </div>
                   <p className="helper-text">Los cambios se aplican al cubo inmediatamente. Al elegir un color personalizado se activa el tema Personalizado.</p>
                 </div>
+                <div className="setting-row">
+                  <span>Reducir animaciones</span>
+                  <label className="switch">
+                    <input type="checkbox" checked={settings.reducedMotion} onChange={event => handleChange("reducedMotion", event.target.checked)} />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
               </div>
 
               <p className="section-title">Interacción y control</p>

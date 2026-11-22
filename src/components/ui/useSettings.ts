@@ -7,6 +7,7 @@ export type SavedGame = {
 };
 export type GameSettings = {
   sfxEnabled: boolean;
+  reducedMotion: boolean;
   cameraSensitivity: number;
   moveSensitivity: number;
   theme: "classic" | "neon" | "halloween" | "pastel" | "custom";
@@ -20,7 +21,7 @@ export const DEFAULT_COLORS: FaceColor = {
   R: "#cd0009", O: "#bc4e00", W: "#ffffff", Y: "#e2b800", G: "#009b48", B: "#0057d9",
 };
 export const DEFAULT_SETTINGS: GameSettings = {
-  sfxEnabled: true, cameraSensitivity: 0.0052, moveSensitivity: 1, theme: "classic",
+  sfxEnabled: true, reducedMotion: false, cameraSensitivity: 0.0052, moveSensitivity: 1, theme: "classic",
   saveProgress: true, hapticsEnabled: true, customColors: DEFAULT_COLORS, savedGame: null,
 };
 
@@ -38,6 +39,7 @@ function readSettings(): GameSettings {
 
     return {
       sfxEnabled: typeof parsed.sfxEnabled === "boolean" ? parsed.sfxEnabled : DEFAULT_SETTINGS.sfxEnabled,
+      reducedMotion: typeof parsed.reducedMotion === "boolean" ? parsed.reducedMotion : DEFAULT_SETTINGS.reducedMotion,
       cameraSensitivity: typeof parsed.cameraSensitivity === "number"
         ? Math.min(0.01, Math.max(0.001, parsed.cameraSensitivity)) : DEFAULT_SETTINGS.cameraSensitivity,
       moveSensitivity: typeof parsed.moveSensitivity === "number"

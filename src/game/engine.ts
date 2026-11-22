@@ -43,6 +43,7 @@ export type CubeApi = {
   setSensitivity: (val: number) => void;
   setMoveSensitivity: (val: number) => void;
   setSfxEnabled: (enabled: boolean) => void;
+  setReducedMotion: (enabled: boolean) => void;
   setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
   setCustomColors: (colors: Record<string, string>) => void;
   setHaptics: (enabled: boolean) => void;
@@ -233,6 +234,7 @@ export class CubeEngine {
   } | null = null;
 
   private reduced: boolean;
+  private systemReducedMotion = false;
   private hapticsEnabled = true;
 
   constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
@@ -240,7 +242,8 @@ export class CubeEngine {
     this.dom = opts.dom;
     this.hooks = opts.hooks;
 
-    this.reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    this.systemReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    this.reduced = this.systemReducedMotion;
 
     // 1. CREACIÓN DEL CANVAS Y TEXTURA BLANCA BASE
     const canvas = document.createElement("canvas");
@@ -1128,6 +1131,10 @@ export class CubeEngine {
 
   public setSfxEnabled(enabled: boolean) { this.sfx.setEnabled(enabled); }
 
+  public setReducedMotion(enabled: boolean) {
+    this.reduced = this.systemReducedMotion || enabled;
+  }
+
   private buildLights(scene: Scene) {
     const amb = new AmbientLight("#ffffff", 0.5);
     const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
@@ -1292,6 +1299,7 @@ export class CubeEngine {
     cameraSensitivity: number;
     moveSensitivity: number;
     sfxEnabled: boolean;
+    reducedMotion: boolean;
     hapticsEnabled: boolean;
     theme: string;
     customColors?: Record<string, string>;
@@ -1299,6 +1307,7 @@ export class CubeEngine {
     this.setSensitivity(settings.cameraSensitivity);
     this.setMoveSensitivity(settings.moveSensitivity);
     this.setSfxEnabled(settings.sfxEnabled);
+    this.setReducedMotion(settings.reducedMotion);
     this.setHaptics(settings.hapticsEnabled);
 
     if (settings.theme === "custom" && settings.customColors) {

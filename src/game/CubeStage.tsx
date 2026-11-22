@@ -33,6 +33,7 @@ function Scene(props: Props) {
       cameraSensitivity: props.settings.cameraSensitivity,
       moveSensitivity: props.settings.moveSensitivity,
       sfxEnabled: props.settings.sfxEnabled,
+      reducedMotion: props.settings.reducedMotion,
       hapticsEnabled: props.settings.hapticsEnabled,
       theme: props.settings.theme,
       customColors: props.settings.customColors,
@@ -46,6 +47,7 @@ function Scene(props: Props) {
       setSensitivity: value => engine.setSensitivity(value),
       setMoveSensitivity: value => engine.setMoveSensitivity(value),
       setSfxEnabled: enabled => engine.setSfxEnabled(enabled),
+      setReducedMotion: enabled => engine.setReducedMotion(enabled),
       setTheme: theme => engine.setTheme(theme),
       setCustomColors: colors => engine.setCustomColors(colors),
       setHaptics: enabled => engine.setHaptics(enabled),
@@ -85,11 +87,12 @@ function Scene(props: Props) {
     engine.setSensitivity(props.settings.cameraSensitivity);
     engine.setMoveSensitivity(props.settings.moveSensitivity);
     engine.setSfxEnabled(props.settings.sfxEnabled);
+    engine.setReducedMotion(props.settings.reducedMotion);
     engine.setHaptics(props.settings.hapticsEnabled);
     if (props.settings.theme === "custom") engine.setCustomColors(props.settings.customColors);
     else engine.setTheme(props.settings.theme);
   }, [props.settings.cameraSensitivity, props.settings.moveSensitivity, props.settings.sfxEnabled,
-      props.settings.hapticsEnabled, props.settings.theme, props.settings.customColors]);
+      props.settings.reducedMotion, props.settings.hapticsEnabled, props.settings.theme, props.settings.customColors]);
 
   useFrame((_, dt) => {
     const engine = engineRef.current;

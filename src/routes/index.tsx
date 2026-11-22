@@ -32,6 +32,7 @@ function Home() {
     current.setSensitivity(settings.cameraSensitivity);
     current.setMoveSensitivity(settings.moveSensitivity);
     current.setSfxEnabled(settings.sfxEnabled);
+    current.setReducedMotion(settings.reducedMotion);
     current.setHaptics(settings.hapticsEnabled);
     if (settings.theme === "custom") current.setCustomColors(settings.customColors);
     else current.setTheme(settings.theme);
@@ -82,6 +83,7 @@ function Home() {
             next.setSensitivity(settings.cameraSensitivity);
             next.setMoveSensitivity(settings.moveSensitivity);
             next.setSfxEnabled(settings.sfxEnabled);
+            next.setReducedMotion(settings.reducedMotion);
             next.setHaptics(settings.hapticsEnabled);
             if (settings.theme === "custom") next.setCustomColors(settings.customColors);
             else next.setTheme(settings.theme);
