@@ -37,7 +37,7 @@ function Home() {
     if (settings.theme === "custom") current.setCustomColors(settings.customColors);
     else current.setTheme(settings.theme);
   }, [settings.cameraSensitivity, settings.moveSensitivity, settings.sfxEnabled,
-      settings.hapticsEnabled, settings.theme, settings.customColors]);
+      settings.reducedMotion, settings.hapticsEnabled, settings.theme, settings.customColors]);
 
   const handleSettingsChange = (patch: Partial<typeof settings>) => {
     if (patch.saveProgress === false) updateSettings({ ...patch, savedGame: null });
