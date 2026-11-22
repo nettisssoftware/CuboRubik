@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type FaceColor = { R: string; O: string; W: string; Y: string; G: string; B: string };
 export type SavedGame = {
@@ -56,21 +56,29 @@ function readSettings(): GameSettings {
 export function useSettings() {
   const [settings, setSettings] = useState<GameSettings>(readSettings);
   const [isLoaded, setIsLoaded] = useState(false);
+  const shouldPersist = useRef((() => {
+    try { return localStorage.getItem("cubix_settings") !== null; }
+    catch { return false; }
+  })());
 
   useEffect(() => {
-    try {
-      localStorage.setItem("cubix_settings", JSON.stringify({
-        ...settings,
-        savedGame: settings.saveProgress ? settings.savedGame : null,
-      }));
-    } catch (error) {
-      console.warn("No se pudieron guardar los ajustes localmente.", error);
+    if (shouldPersist.current) {
+      try {
+        localStorage.setItem("cubix_settings", JSON.stringify({
+          ...settings,
+          savedGame: settings.saveProgress ? settings.savedGame : null,
+        }));
+      } catch (error) {
+        console.warn("No se pudieron guardar los ajustes localmente.", error);
+      }
     }
     setIsLoaded(true);
   }, [settings]);
 
-  const updateSettings = (patch: Partial<GameSettings>) =>
+  const updateSettings = (patch: Partial<GameSettings>) => {
+    shouldPersist.current = true;
     setSettings(previous => ({ ...previous, ...patch }));
+  };
 
   const updateSetting = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) =>
     updateSettings({ [key]: value } as Pick<GameSettings, K>);

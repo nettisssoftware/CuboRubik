@@ -17,6 +17,12 @@ const THEMES = [
 const FACE_LABELS: Record<keyof FaceColor, string> = {
   W: "Blanco", Y: "Amarillo", R: "Rojo", O: "Naranja", G: "Verde", B: "Azul",
 };
+const THEME_PALETTES: Record<"classic" | "neon" | "pastel" | "halloween", FaceColor> = {
+  classic: { R: "#cd0009", O: "#bc4e00", W: "#ffffff", Y: "#e2b800", G: "#009b48", B: "#0057d9" },
+  neon: { R: "#ff003c", O: "#ff7b00", W: "#f0f0f0", Y: "#ffee00", G: "#00ff41", B: "#00b3ff" },
+  pastel: { R: "#ff5353", O: "#ffa502", W: "#f1f2f6", Y: "#ffe05e", G: "#33ff87", B: "#74d1ff" },
+  halloween: { R: "#ff3300", O: "#ff8c00", W: "#e0e0e0", Y: "#ffcc00", G: "#00cc44", B: "#0053cc" },
+};
 
 export function SettingsMenu({ settings, onChange, onClear }: Props) {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,6 +30,8 @@ export function SettingsMenu({ settings, onChange, onClear }: Props) {
     onChange({ [key]: value } as Pick<GameSettings, K>);
   const handleColorChange = (face: keyof FaceColor, color: string) =>
     onChange({ customColors: { ...settings.customColors, [face]: color }, theme: "custom" });
+  const handleThemeChange = (theme: keyof typeof THEME_PALETTES) =>
+    onChange({ theme, customColors: THEME_PALETTES[theme] });
   const handleClear = () => {
     if (!window.confirm("¿Seguro que quieres borrar todo tu progreso y ajustes? Esta acción no se puede deshacer.")) return;
     onClear();
@@ -64,7 +72,7 @@ export function SettingsMenu({ settings, onChange, onClear }: Props) {
                     {THEMES.map(theme => <button key={theme.id} type="button"
                       className={`theme-btn ${settings.theme === theme.id ? "active" : ""}`}
                       aria-pressed={settings.theme === theme.id}
-                      onClick={() => handleChange("theme", theme.id)}>
+                      onClick={() => handleThemeChange(theme.id)}>
                       <div className="theme-preview">{theme.colors.map(color => <span key={color} style={{ background: color }} />)}</div>
                       <span className="theme-name">{theme.name}</span>
                     </button>)}

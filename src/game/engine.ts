@@ -648,6 +648,7 @@ export class CubeEngine {
       this.retries = 0;
       this.phase = "playing";
       this.hooks.onPhase(this.phase);
+      this.onStateChange?.();
 
       return;
     }

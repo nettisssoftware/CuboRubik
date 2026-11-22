@@ -101,7 +101,7 @@ function Scene(props: Props) {
 }
 
 export function CubeStage(props: Props) {
-  return <Canvas shadows dpr={[1, 2]}
+  return <Canvas shadows dpr={[1, 3]}
     camera={{ fov: 32, near: 1, far: 50, position: [4, 3.2, 10] }}
     gl={{
       antialias: true, alpha: true,
