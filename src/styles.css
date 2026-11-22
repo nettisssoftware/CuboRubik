@@ -42,7 +42,10 @@
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  background: var(--color-bg);
+  background-image: url("/arena.jpg");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
   color: var(--color-fg);
 }
 
