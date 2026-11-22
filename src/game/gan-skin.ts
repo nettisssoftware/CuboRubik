@@ -167,18 +167,17 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
-    bevelThickness: 0.01,   // Bisel del cuerpo negro muy sutil
+    bevelThickness: 0.01,   // Bisel sutil para el cuerpo
     bevelSize: 0.01,
     bevelSegments: 1,
     curveSegments: 4,
   });
 
-  // MATEMÁTICA DEL ESPACIO DE 1 UNIDAD:
-  // El sticker termina en Z = -0.10.
-  // Queremos que el cuerpo empiece en Z = -0.11.
-  // Como la geometría se extruye hacia atrás desde su posición,
-  // trasladamos el cuerpo a: -depth - 0.11.
-  geo.translate(0, 0, -depth - 0.11);
+  // CORRECCIÓN MATEMÁTICA:
+  // El sticker termina en Z = -0.10. 
+  // Queremos que el cuerpo negro termine en Z = -0.11 (1 unidad de separación).
+  // Como la geometría se extruye hacia atrás, lo trasladamos a -depth - 0.01.
+  geo.translate(0, 0, -depth - 0.01);
 
   return geo;
 }

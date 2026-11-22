@@ -72,7 +72,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 1.04;
+const SPACING = 1.00;
 // El cuerpo negro es ligeramente más pequeño (0.90) que los stickers (0.98)
 // Esto hace que el negro quede "hundido" y no sobresalga por los lados.
 const BODY_SIZE = 0.9;
@@ -1032,7 +1032,7 @@ export class CubeEngine {
     this.geos.push(...gan.all);
 
     const plastic = new MeshPhysicalMaterial({
-      color: "#ffffff",
+      color: "#000000",
       metalness: 0.0,
       roughness: 0.2,
       clearcoat: 1.0,
