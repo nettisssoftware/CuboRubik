@@ -41,6 +41,8 @@ export type CubeApi = {
   start: () => void;
   replay: () => void;
   setSensitivity: (val: number) => void;
+  setMoveSensitivity: (val: number) => void;
+  setSfxEnabled: (enabled: boolean) => void;
   setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
   setCustomColors: (colors: Record<string, string>) => void;
   setHaptics: (enabled: boolean) => void;
@@ -80,8 +82,12 @@ const SCRAMBLE_MS = 0.092;
 
 class Sfx {
   private ctx: AudioContext | null = null;
+  private enabled = true;
+
+  setEnabled(enabled: boolean) { this.enabled = enabled; }
 
   unlock() {
+    if (!this.enabled) return;
     try {
       const AC =
         window.AudioContext ||
@@ -119,12 +125,14 @@ class Sfx {
   }
 
   turn(soft: boolean) {
+    if (!this.enabled) return;
     this.unlock();
     this.tone(soft ? 160 : 196, 0.05, "triangle", soft ? 0.018 : 0.045);
     this.tone(soft ? 340 : 480, 0.03, "square", soft ? 0.006 : 0.012);
   }
 
   win() {
+    if (!this.enabled) return;
     this.unlock();
     [523, 659, 784, 1046].forEach((n, i) => this.tone(n, 0.2, "triangle", 0.045, i * 0.08));
   }
@@ -177,6 +185,7 @@ export class CubeEngine {
 
   private theta = 0.62;
   private sens = 0.0052;
+  private moveSens = 1;
   private phi = 1.02;
 
   private radius = 12;
@@ -225,7 +234,6 @@ export class CubeEngine {
 
   private reduced: boolean;
   private hapticsEnabled = true;
-  private keyLight: PointLight | null = null;
 
   constructor(opts: { scene: Scene; camera: PerspectiveCamera; dom: HTMLElement; hooks: Hooks }) {
     this.camera = opts.camera;
@@ -510,9 +518,11 @@ export class CubeEngine {
 
     this.queue = [];
     this.anim = null;
+    this.history = [];
 
     this.phase = "scrambling";
     this.hooks.onPhase(this.phase);
+    this.onStateChange?.();
 
     this.queue.push(...makeScramble(this.reduced ? 16 : 24));
     this.pump();
@@ -521,10 +531,7 @@ export class CubeEngine {
   private declareWin() {
     this.phase = "won";
     this.sfx.win();
-
-    if (this.hapticsEnabled && typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate([150, 80, 150, 80, 300]);
-    }
+    this.triggerHaptic([45, 35, 90]);
 
     this.hooks.onPhase(this.phase);
     if (this.onStateChange) this.onStateChange();
@@ -615,9 +622,8 @@ export class CubeEngine {
         quarters: anim.quarters,
       });
 
-      if (anim.sound) {
-        this.sfx.turn(this.phase === "scrambling");
-      }
+      if (anim.sound) this.sfx.turn(this.phase === "scrambling");
+      if (anim.user) this.triggerHaptic(12);
 
       if (anim.user && !this.announcedMove) {
         this.announcedMove = true;
@@ -689,7 +695,7 @@ export class CubeEngine {
 
     const pixels = (dx * this.screen.x + dy * this.screen.y) / this.screen.length();
 
-    const dAngle = pixels / pxPerWorld / radius;
+    const dAngle = (pixels / pxPerWorld / radius) * this.moveSens;
 
     slice.angle = clamp(slice.angle + dAngle, -Math.PI * 1.2, Math.PI * 1.2);
 
@@ -1111,21 +1117,15 @@ export class CubeEngine {
 
   public setHaptics(enabled: boolean) {
     this.hapticsEnabled = enabled;
+    if (!enabled && typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(0);
   }
 
-  public updateShadowQuality(quality: "low" | "medium" | "high") {
-    if (!this.keyLight) return;
-
-    const size = quality === "high" ? 2048 : quality === "medium" ? 1024 : 512;
-
-    if (this.keyLight.shadow.map) {
-      this.keyLight.shadow.map.setSize(size, size);
-      this.keyLight.shadow.map.dispose();
-      this.keyLight.shadow.map = null;
-    }
-    this.keyLight.shadow.mapSize.set(size, size);
-    this.keyLight.shadow.needsUpdate = true;
+  private triggerHaptic(pattern: number | number[]) {
+    if (!this.hapticsEnabled || typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+    try { navigator.vibrate(pattern); } catch { /* Unsupported vibration API. */ }
   }
+
+  public setSfxEnabled(enabled: boolean) { this.sfx.setEnabled(enabled); }
 
   private buildLights(scene: Scene) {
     const amb = new AmbientLight("#ffffff", 0.5);
@@ -1138,7 +1138,6 @@ export class CubeEngine {
     key.shadow.mapSize.width = 1024;
     key.shadow.mapSize.height = 1024;
     key.shadow.bias = -0.001;
-    this.keyLight = key;
 
     const fill = new DirectionalLight("#9fdfff", 0.48);
     fill.position.set(-7, 3.2, -4);
@@ -1162,7 +1161,11 @@ export class CubeEngine {
   }
 
   public setSensitivity(val: number) {
-    this.sens = val;
+    this.sens = clamp(val, 0.001, 0.01);
+  }
+
+  public setMoveSensitivity(val: number) {
+    this.moveSens = clamp(val, 0.5, 2);
   }
 
   // Función interna para pintar los colores personalizados
@@ -1286,12 +1289,15 @@ export class CubeEngine {
   // NUEVO: Método para inicializar todos los ajustes de golpe
   public initSettings(settings: {
     cameraSensitivity: number;
+    moveSensitivity: number;
+    sfxEnabled: boolean;
     hapticsEnabled: boolean;
     theme: string;
     customColors?: Record<string, string>;
-    shadowQuality: "low" | "medium" | "high";
   }) {
     this.setSensitivity(settings.cameraSensitivity);
+    this.setMoveSensitivity(settings.moveSensitivity);
+    this.setSfxEnabled(settings.sfxEnabled);
     this.setHaptics(settings.hapticsEnabled);
 
     if (settings.theme === "custom" && settings.customColors) {
@@ -1300,7 +1306,6 @@ export class CubeEngine {
       this.setTheme(settings.theme as any);
     }
 
-    this.updateShadowQuality(settings.shadowQuality);
   }
 }
 

@@ -9,7 +9,7 @@ type Props = {
   onTap: () => void;
   onFirstMove: () => void;
   onApi: (api: CubeApi) => void;
-  settings: GameSettings; // <-- NUEVO
+  settings: GameSettings;
   onSaveState: (state: any) => void;
 };
 
@@ -21,105 +21,75 @@ function Scene(props: Props) {
 
   useEffect(() => {
     const engine = new CubeEngine({
-      scene,
-      camera: camera as ThreeCamera,
-      dom: gl.domElement,
+      scene, camera: camera as ThreeCamera, dom: gl.domElement,
       hooks: {
-        onPhase: (phase) => propsRef.current.onPhase(phase),
+        onPhase: phase => propsRef.current.onPhase(phase),
         onTap: () => propsRef.current.onTap(),
         onFirstMove: () => propsRef.current.onFirstMove(),
       },
     });
     engineRef.current = engine;
-
-    // NUEVO: Inicializar los ajustes del motor INMEDIATAMENTE
     engine.initSettings({
       cameraSensitivity: props.settings.cameraSensitivity,
+      moveSensitivity: props.settings.moveSensitivity,
+      sfxEnabled: props.settings.sfxEnabled,
       hapticsEnabled: props.settings.hapticsEnabled,
       theme: props.settings.theme,
       customColors: props.settings.customColors,
-      shadowQuality: props.settings.shadowQuality,
     });
+    engine.onStateChange = () => propsRef.current.onSaveState(engine.getSaveState());
+    if (props.settings.savedGame) engine.loadSaveState(props.settings.savedGame);
 
-    // NUEVO: Configurar el guardado automático
-    engine.onStateChange = () => {
-      const saveState = engine.getSaveState();
-      if (propsRef.current.onSaveState) {
-        propsRef.current.onSaveState(saveState);
-      }
-    };
-
-    // NUEVO: Cargar partida si existe
-    if (props.settings.savedGame) {
-      engine.loadSaveState(props.settings.savedGame);
-    }
-
-    // API EXPUESTA AL PADRE
     propsRef.current.onApi({
       start: () => engine.start(),
       replay: () => engine.replay(),
-      setSensitivity: (val) => engine.setSensitivity(val),
-      setTheme: (theme) => engine.setTheme(theme),
-      setCustomColors: (colors) => engine.setCustomColors(colors), // <-- NUEVO
-      setHaptics: (enabled) => engine.setHaptics(enabled), // <-- NUEVO
+      setSensitivity: value => engine.setSensitivity(value),
+      setMoveSensitivity: value => engine.setMoveSensitivity(value),
+      setSfxEnabled: enabled => engine.setSfxEnabled(enabled),
+      setTheme: theme => engine.setTheme(theme),
+      setCustomColors: colors => engine.setCustomColors(colors),
+      setHaptics: enabled => engine.setHaptics(enabled),
     });
 
-    
-    const el = gl.domElement;
-    const down = (e: PointerEvent) => engine.onPointerDown(e);
-    const move = (e: PointerEvent) => engine.onPointerMove(e);
-    const up = (e: PointerEvent) => engine.onPointerUp(e);
-    const wheel = (e: WheelEvent) => {
-      e.preventDefault();
-      engine.onWheel(e);
-    };
-    const menu = (e: Event) => e.preventDefault();
-    const blockTouch = (e: TouchEvent) => e.preventDefault();
-
-    el.addEventListener("pointerdown", down);
+    const element = gl.domElement;
+    const down = (event: PointerEvent) => engine.onPointerDown(event);
+    const move = (event: PointerEvent) => engine.onPointerMove(event);
+    const up = (event: PointerEvent) => engine.onPointerUp(event);
+    const wheel = (event: WheelEvent) => { event.preventDefault(); engine.onWheel(event); };
+    const preventMenu = (event: Event) => event.preventDefault();
+    const preventTouchScroll = (event: TouchEvent) => event.preventDefault();
+    element.addEventListener("pointerdown", down);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
-    el.addEventListener("wheel", wheel, { passive: false });
-    el.addEventListener("contextmenu", menu);
-    el.addEventListener("touchmove", blockTouch, { passive: false });
+    element.addEventListener("wheel", wheel, { passive: false });
+    element.addEventListener("contextmenu", preventMenu);
+    element.addEventListener("touchmove", preventTouchScroll, { passive: false });
 
     return () => {
-      el.removeEventListener("pointerdown", down);
+      element.removeEventListener("pointerdown", down);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
-      el.removeEventListener("wheel", wheel);
-      el.removeEventListener("contextmenu", menu);
-      el.removeEventListener("touchmove", blockTouch);
+      element.removeEventListener("wheel", wheel);
+      element.removeEventListener("contextmenu", preventMenu);
+      element.removeEventListener("touchmove", preventTouchScroll);
       engine.dispose();
       engineRef.current = null;
     };
-  }, [gl, camera, scene]); // Solo se inicializa una vez
+  }, [gl, camera, scene]);
 
-  // NUEVO: Efecto para actualizar el motor cuando cambian los ajustes
   useEffect(() => {
-    if (!engineRef.current) return;
     const engine = engineRef.current;
-
+    if (!engine) return;
     engine.setSensitivity(props.settings.cameraSensitivity);
+    engine.setMoveSensitivity(props.settings.moveSensitivity);
+    engine.setSfxEnabled(props.settings.sfxEnabled);
     engine.setHaptics(props.settings.hapticsEnabled);
-
-    if (props.settings.theme === "custom") {
-      engine.setCustomColors(props.settings.customColors);
-    } else {
-      engine.setTheme(props.settings.theme);
-    }
-
-    // Actualizar calidad de sombras
-    engine.updateShadowQuality(props.settings.shadowQuality);
-  }, [
-    props.settings.cameraSensitivity,
-    props.settings.hapticsEnabled,
-    props.settings.theme,
-    props.settings.customColors,
-    props.settings.shadowQuality,
-  ]);
+    if (props.settings.theme === "custom") engine.setCustomColors(props.settings.customColors);
+    else engine.setTheme(props.settings.theme);
+  }, [props.settings.cameraSensitivity, props.settings.moveSensitivity, props.settings.sfxEnabled,
+      props.settings.hapticsEnabled, props.settings.theme, props.settings.customColors]);
 
   useFrame((_, dt) => {
     const engine = engineRef.current;
@@ -127,42 +97,20 @@ function Scene(props: Props) {
     engine.setViewport(size.width, size.height);
     engine.tick(dt);
   });
-
   return null;
 }
 
 export function CubeStage(props: Props) {
-  // Lógica de DPR dinámico
-  const dpr: [number, number] = props.settings.batterySaver ? [1, 1] : [1, 3];
-
-  return (
-    <Canvas
-      shadows={props.settings.shadowQuality !== "low"} // Desactiva sombras si es "low"
-      dpr={dpr}
-      camera={{ fov: 32, near: 1, far: 50, position: [4, 3.2, 10] }}
-      gl={{
-        antialias: true,
-        alpha: true,
-        // Tone Mapping dinámico
-        toneMapping: props.settings.theme === "neon" ? ACESFilmicToneMapping : NoToneMapping,
-        powerPreference: props.settings.batterySaver ? "default" : "high-performance",
-      }}
-      onCreated={({ gl }) => {
-        gl.setClearColor(0x000000, 0);
-      }}
-    >
-      <Scene {...props} />
-    </Canvas>
-  );
+  return <Canvas shadows dpr={[1, 2]}
+    camera={{ fov: 32, near: 1, far: 50, position: [4, 3.2, 10] }}
+    gl={{
+      antialias: true, alpha: true,
+      toneMapping: props.settings.theme === "neon" ? ACESFilmicToneMapping : NoToneMapping,
+      powerPreference: "high-performance",
+    }}
+    onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}>
+    <Scene {...props} />
+  </Canvas>;
 }
-
-export type CubeApi = {
-  start: () => void;
-  replay: () => void;
-  setSensitivity: (val: number) => void;
-  setTheme: (theme: "classic" | "neon" | "halloween" | "pastel") => void;
-  setCustomColors: (colors: Record<string, string>) => void;
-  setHaptics: (enabled: boolean) => void;
-};
 
 export type { CubeApi, Phase };
