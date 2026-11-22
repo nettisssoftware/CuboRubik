@@ -1032,9 +1032,11 @@ export class CubeEngine {
     this.geos.push(...gan.all);
 
     const plastic = new MeshPhysicalMaterial({
-      color: "#000000",
-      roughness: 0.55,
+      color: "#ffffff",
       metalness: 0.0,
+      roughness: 0.2,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.5,
     });
     this.mats.push(plastic);
 
@@ -1046,8 +1048,6 @@ export class CubeEngine {
         metalness: 0.0,
         clearcoat: 1.0,
         clearcoatRoughness: 0.5,
-        emissive: hex,
-        emissiveIntensity: 0.3,
       });
       stickerMats.set(id, mat);
       this.mats.push(mat);
