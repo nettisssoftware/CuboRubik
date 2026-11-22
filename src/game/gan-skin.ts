@@ -26,7 +26,7 @@ export function createGanGeometries(): GanGeos {
   // 1. Generar las siluetas 2D
   const loopCenter = roundRect(SIZE, R, R, R, R);
   const loopEdge = edgeBulge(SIZE, SAG);
-  const CORNER_RADIUS = 0.08; // Radio de 5 para el borde radial de las 8 esquinas (ajusta a tu gusto)
+  const CORNER_RADIUS = 0.04; // Radio de 5 para el borde radial de las 8 esquinas (ajusta a tu gusto)
   const loopCorner = roundRect(SIZE, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS);
 
   // 2. Crear las piezas negras (extruidas en 3D)
@@ -162,39 +162,40 @@ function shapeFrom(loop: Pt[]): Shape {
   return shape;
 }
 
-
-
 function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
-    bevelThickness: 0.02,
-    bevelSize: 0.02,
+    bevelThickness: 0.01,   // Bisel del cuerpo negro muy sutil
+    bevelSize: 0.01,
     bevelSegments: 1,
     curveSegments: 4,
   });
 
-  // El cuerpo negro queda detrás de la superficie coloreada.
-  geo.translate(0, 0, -depth + 0.05);
+  // MATEMÁTICA DEL ESPACIO DE 1 UNIDAD:
+  // El sticker termina en Z = -0.10.
+  // Queremos que el cuerpo empiece en Z = -0.11.
+  // Como la geometría se extruye hacia atrás desde su posición,
+  // trasladamos el cuerpo a: -depth - 0.11.
+  geo.translate(0, 0, -depth - 0.11);
 
   return geo;
 }
 
-
 function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
-    depth: 0.09,             // 1. Más grosor (relieve negativo profundo)
-    bevelEnabled: true,      // 2. Biselado activado
-    bevelThickness: 0.06,   // 3. Bisel sutil
-    bevelSize: 0.04,
-    bevelSegments: 2,
+    depth: 0.05,            // Grosor total reducido a 5 unidades (0.05)
+    bevelEnabled: true,     // Bisel activado
+    bevelThickness: 0.015,  // Bisel mucho más discreto (antes 0.06)
+    bevelSize: 0.015,       // Expansión lateral discreta (antes 0.04)
+    bevelSegments: 2,       // Se mantiene para que la curva sea suave
     curveSegments: 4,
   });
-  // 4. Empujamos el sticker hacia adentro (relieve negativo puro)
-  // Su cara frontal queda en Z=0, al ras.
-  geo.translate(0, 0, -0.07); 
+  
+  // Lo hundimos para que su cara frontal quede al ras (Z=0)
+  geo.translate(0, 0, -0.05); 
   return geo;
 }
 
