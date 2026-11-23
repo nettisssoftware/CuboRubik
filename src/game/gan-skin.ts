@@ -172,8 +172,8 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
-    bevelThickness: 0.04,
-    bevelSize: 0.04,
+    bevelThickness: 0.02,
+    bevelSize: 0.02,
     bevelSegments: 2,
     curveSegments: 4,
   });
