@@ -166,41 +166,38 @@ function shapeFrom(loop: Pt[]): Shape {
   return shape;
 }
 
+
 function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
-    bevelThickness: BEVEL_THICKNESS,
-    bevelSize: BEVEL_SIZE,
-    bevelSegments: BEVEL_SEGMENTS,
+    bevelThickness: 0.02,
+    bevelSize: 0.02,
+    bevelSegments: 1,
     curveSegments: 4,
   });
 
-  // ExtrudeGeometry llega hasta depth + bevelThickness en su cara frontal.
-  // El cuerpo termina detrás de la cara posterior real del sticker.
-  const stickerBackZ =
-    -(STICKER_DEPTH + BEVEL_THICKNESS) - BEVEL_THICKNESS;
-  const bodyFrontZ = stickerBackZ - BODY_CLEARANCE;
-  const bodyTranslateZ = bodyFrontZ - depth - BEVEL_THICKNESS;
+  // El cuerpo negro queda detrás de la superficie coloreada.
+  geo.translate(0, 0, -depth + 0.05);
 
-  geo.translate(0, 0, bodyTranslateZ);
   return geo;
 }
+
 
 function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
-    depth: STICKER_DEPTH,
-    bevelEnabled: true,
-    bevelThickness: BEVEL_THICKNESS,
-    bevelSize: BEVEL_SIZE,
-    bevelSegments: BEVEL_SEGMENTS,
+    depth: 0.06,             // 1. Más grosor (relieve negativo profundo)
+    bevelEnabled: true,      // 2. Biselado activado
+    bevelThickness: 0.04,   // 3. Bisel sutil
+    bevelSize: 0.04,
+    bevelSegments: 2,
     curveSegments: 4,
   });
-
-  // La cara frontal del bisel queda exactamente en Z=0.
-  geo.translate(0, 0, -(STICKER_DEPTH + BEVEL_THICKNESS));
+  // 4. Empujamos el sticker hacia adentro (relieve negativo puro)
+  // Su cara frontal queda en Z=0, al ras.
+  geo.translate(0, 0, -0.06); 
   return geo;
 }
 
