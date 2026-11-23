@@ -172,14 +172,14 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
-    bevelThickness: 0.02,
-    bevelSize: 0.02,
-    bevelSegments: 1,
+    bevelThickness: 0.04,
+    bevelSize: 0.04,
+    bevelSegments: 2,
     curveSegments: 4,
   });
 
   // El cuerpo negro queda detrás de la superficie coloreada.
-  geo.translate(0, 0, -depth + 0.05);
+  geo.translate(0, 0, -depth + 0.09);
 
   return geo;
 }
