@@ -1031,9 +1031,9 @@ export class CubeEngine {
     const plastic = new MeshPhysicalMaterial({
       color: "#000000",
       metalness: 0.0,
-      roughness: 0.2,
+      roughness: 0.35,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.5,
+      clearcoatRoughness: 0.1,
     });
     this.mats.push(plastic);
 
@@ -1041,10 +1041,10 @@ export class CubeEngine {
     for (const [id, hex] of Object.entries(FACE_HEX)) {
       const mat = new MeshPhysicalMaterial({
         color: hex,
-        roughness: 0.2,
+        roughness: 0.35,
         metalness: 0.0,
         clearcoat: 1.0,
-        clearcoatRoughness: 0.5,
+        clearcoatRoughness: 0.1,
       });
       stickerMats.set(id, mat);
       this.mats.push(mat);
@@ -1071,10 +1071,10 @@ export class CubeEngine {
           mat = new MeshPhysicalMaterial({
             color: "#ffffff",
             map: this.logoTexture,
-            roughness: 0.2,
+            roughness: 0.35,
             metalness: 0.0,
             clearcoat: 1.0,
-            clearcoatRoughness: 0.5,
+            clearcoatRoughness: 0.1,
           });
 
           // Registrar el material para su gestión.
