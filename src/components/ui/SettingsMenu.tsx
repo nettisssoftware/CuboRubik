@@ -113,10 +113,10 @@ export function SettingsMenu({ settings, onChange, onClear }: Props) {
                   <p className="helper-text">Controla la velocidad de giro de la cámara al arrastrar o usar el gesto de pellizco.</p>
                 </div>
                 <div className="setting-row column">
-                  <div className="row-header"><span className="row-label">Sensibilidad de movimientos de las piezas</span>
+                  <div className="row-header"><span className="row-label">Sensibilidad de las piezas</span>
                     <span className="value-badge">{Math.round(settings.moveSensitivity * 100)}%</span></div>
                   <input type="range" min="0.5" max="2" step="0.1" value={settings.moveSensitivity}
-                    aria-label="Sensibilidad de movimientos de las piezas" onChange={event => handleChange("moveSensitivity", Number(event.target.value))} className="slider-range" />
+                    aria-label="Sensibilidad de las piezas" onChange={event => handleChange("moveSensitivity", Number(event.target.value))} className="slider-range" />
                   <p className="helper-text">Ajusta cuánto recorrido del dedo o del ratón se necesita para girar una capa del cubo.</p>
                 </div>
                 <div className="setting-row"><span>Vibración háptica</span><label className="switch">
