@@ -16,7 +16,7 @@ export type GanGeos = {
 };
 
 const SIZE = 0.94; // Silueta compartida por el cuerpo y el sticker
-const DEPTH = 0.20; // Profundidad del cuerpo negro
+const DEPTH = 0.40; // Profundidad del cuerpo negro
 const STICKER_DEPTH = 0.05;
 const BEVEL_THICKNESS = 0.015;
 const BEVEL_SIZE = 0.012;
@@ -172,8 +172,8 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const geo = new ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: true,
-    bevelThickness: 0.02,
-    bevelSize: 0.02,
+    bevelThickness: 0.04,
+    bevelSize: 0.04,
     bevelSegments: 2,
     curveSegments: 4,
   });
@@ -196,7 +196,7 @@ function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   });
   // 4. Empujamos el sticker hacia adentro (relieve negativo puro)
   // Su cara frontal queda en Z=0, al ras.
-  geo.translate(0, 0, -0.04); 
+  geo.translate(0, 0, -0.05); 
   return geo;
 }
 
