@@ -179,7 +179,7 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   });
 
   // El cuerpo negro queda detrás de la superficie coloreada.
-  geo.translate(0, 0, -depth + 0.01);
+  geo.translate(0, 0, -depth - 0.04);
 
   return geo;
 }
