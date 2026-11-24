@@ -864,7 +864,7 @@ export class CubeEngine {
     const sens = this.sens;
 
     this.theta -= dx * sens;
-    this.phi = clamp(this.phi - dy * sens, 0.18, Math.PI - 0.18);
+    this.phi -= dy * sens;
 
     this.vTheta = clamp((-dx * sens) / dt, -2.2, 2.2);
     this.vPhi = clamp((-dy * sens) / dt, -2.2, 2.2);
@@ -910,7 +910,7 @@ export class CubeEngine {
 
     this.theta = pinch.theta - (midX - pinch.midX) * this.sens;
 
-    this.phi = clamp(pinch.phi - (midY - pinch.midY) * this.sens, 0.18, Math.PI - 0.18);
+    this.phi = pinch.phi - (midY - pinch.midY) * this.sens;
 
     this.orbiting = true;
   }
@@ -925,7 +925,7 @@ export class CubeEngine {
     if (!this.orbiting) {
       this.theta += this.vTheta * dt;
 
-      this.phi = clamp(this.phi + this.vPhi * dt, 0.18, Math.PI - 0.18);
+      this.phi += this.vPhi * dt;
 
       const damp = Math.exp(-3.4 * dt);
 
@@ -947,6 +947,11 @@ export class CubeEngine {
       this.radius * sinPhi * Math.cos(this.theta),
     );
 
+    this.camera.up.set(
+      -Math.cos(this.phi) * Math.sin(this.theta),
+      Math.sin(this.phi),
+      -Math.cos(this.phi) * Math.cos(this.theta),
+    );
     this.camera.lookAt(0, this.lookY, 0);
   }
 
