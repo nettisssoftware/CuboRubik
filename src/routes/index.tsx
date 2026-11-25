@@ -94,7 +94,7 @@ function Home() {
       <div className="vignette" />
       <SettingsMenu settings={settings} onChange={handleSettingsChange} onClear={clearAllData} />
       <header className="hud">
-        <div className="brand"><p className="wordmark">CUBIX</p><p className="kicker">Arena 3×3</p></div>
+        <div className="brand"><p className="wordmark">ZUN CUBE</p><p className="kicker">SIMULATOR 3×3</p></div>
         <div className="hud-copy">
           {phase === "ready" ? <><p className="prompt">Toca dos veces la pantalla para comenzar</p>{armed ? <p className="armed">Una vez más</p> : null}</> : null}
           {phase === "scrambling" ? <p className="status">Mezclando el cubo</p> : null}
