@@ -82,7 +82,9 @@ class Sfx {
   private ctx: AudioContext | null = null;
   private enabled = true;
 
-  setEnabled(enabled: boolean) { this.enabled = enabled; }
+  setEnabled(enabled: boolean) {
+    this.enabled = enabled;
+  }
 
   unlock() {
     if (!this.enabled) return;
@@ -239,7 +241,8 @@ export class CubeEngine {
     this.dom = opts.dom;
     this.hooks = opts.hooks;
 
-    this.systemReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    this.systemReducedMotion =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     this.reduced = this.systemReducedMotion;
 
     // 1. CREACIÓN DEL CANVAS Y TEXTURA BLANCA BASE
@@ -1123,15 +1126,27 @@ export class CubeEngine {
 
   public setHaptics(enabled: boolean) {
     this.hapticsEnabled = enabled;
-    if (!enabled && typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(0);
+    if (!enabled && typeof navigator !== "undefined" && typeof navigator.vibrate === "function")
+      navigator.vibrate(0);
   }
 
   private triggerHaptic(pattern: number | number[]) {
-    if (!this.hapticsEnabled || typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
-    try { navigator.vibrate(pattern); } catch { /* Unsupported vibration API. */ }
+    if (
+      !this.hapticsEnabled ||
+      typeof navigator === "undefined" ||
+      typeof navigator.vibrate !== "function"
+    )
+      return;
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      /* Unsupported vibration API. */
+    }
   }
 
-  public setSfxEnabled(enabled: boolean) { this.sfx.setEnabled(enabled); }
+  public setSfxEnabled(enabled: boolean) {
+    this.sfx.setEnabled(enabled);
+  }
 
   public setReducedMotion(enabled: boolean) {
     this.reduced = this.systemReducedMotion || enabled;
@@ -1141,9 +1156,9 @@ export class CubeEngine {
     const amb = new AmbientLight("#ffffff", 0.5);
     const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
 
-    const key = new PointLight("#ffffff", 45, 50);
-    key.position.set(0, 10, 0);
-
+    // Reemplaza la PointLight por una DirectionalLight
+    const key = new DirectionalLight("#ffffff", 1.2); // Intensidad moderada
+    key.position.set(5, 10, 7); // Dirección de la luz
     key.castShadow = true;
     key.shadow.mapSize.width = 1024;
     key.shadow.mapSize.height = 1024;
@@ -1317,7 +1332,6 @@ export class CubeEngine {
     } else {
       this.setTheme(settings.theme as any);
     }
-
   }
 }
 
