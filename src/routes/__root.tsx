@@ -3,9 +3,9 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Cubix Arena 3x3 Arcade";
+const APP_NAME = "Zun Cube Simulator";
 const APP_URL = "https://cuborubikgame.vercel.app";
-const APP_DESCRIPTION = "Juega al clásico Cubo de Rubik 3x3x3 moderno en 3D directamente en tu navegador en una versión estable. Gira las piezas con el dedo, personaliza tu cubo y resuélvelo en tiempo récord. ¡Sin descargas!";
+const APP_DESCRIPTION = "Simulador gratuito de cubo de Rubik 3x3 en 3D. Gira cada capa, personaliza colores y temas, practica movimientos y resuelve el cubo directamente desde tu navegador, sin descargas.";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -20,8 +20,8 @@ export const Route = createRootRoute({
       // --- SEO Básico ---
       { title: APP_NAME },
       { name: "description", content: APP_DESCRIPTION },
-      { name: "keywords", content: "cubo rubik, rubik 3x3, juego cubo rubik, cubo rubik 3d, resolver cubo rubik, rompecabezas 3d, cubix arena, Zun Cube." },
-      { name: "author", content: "Zun Cube" },
+      { name: "keywords", content: "cubo rubik, cubo rubik 3x3, simulador cubo rubik, cubo rubik 3d, resolver cubo rubik, rompecabezas 3d, Zun Cube Simulator, Zun Cube." },
+      { name: "author", content: "Nettiss Software" },
       { name: "robots", content: "index, follow" }, // Permite a Google indexar y seguir enlaces
 
       // --- Open Graph (Facebook, WhatsApp, Discord, etc.) ---
