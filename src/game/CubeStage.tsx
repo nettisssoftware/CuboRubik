@@ -11,6 +11,7 @@ type Props = {
   onApi: (api: CubeApi) => void;
   settings: GameSettings;
   onSaveState: (state: any) => void;
+  onCaseStateChange: (state: { removed: boolean; lidOpen: boolean }) => void;
 };
 
 function Scene(props: Props) {
@@ -39,6 +40,8 @@ function Scene(props: Props) {
       customColors: props.settings.customColors,
     });
     engine.onStateChange = () => propsRef.current.onSaveState(engine.getSaveState());
+    engine.onCaseStateChange = state => propsRef.current.onCaseStateChange(state);
+    engine.setCaseState(props.settings.savedBox);
     if (props.settings.savedGame) engine.loadSaveState(props.settings.savedGame);
 
     propsRef.current.onApi({

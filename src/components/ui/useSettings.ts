@@ -5,6 +5,7 @@ export type SavedGame = {
   history: { axis: 0 | 1 | 2; layer: -1 | 0 | 1; quarters: number }[];
   phase: "playing" | "won";
 };
+export type SavedBoxState = { removed: boolean; lidOpen: boolean };
 export type GameSettings = {
   sfxEnabled: boolean;
   reducedMotion: boolean;
@@ -15,6 +16,7 @@ export type GameSettings = {
   hapticsEnabled: boolean;
   customColors: FaceColor;
   savedGame: SavedGame | null;
+  savedBox: SavedBoxState;
 };
 
 export const DEFAULT_COLORS: FaceColor = {
@@ -23,6 +25,7 @@ export const DEFAULT_COLORS: FaceColor = {
 export const DEFAULT_SETTINGS: GameSettings = {
   sfxEnabled: true, reducedMotion: false, cameraSensitivity: 0.0052, moveSensitivity: 1, theme: "classic",
   saveProgress: true, hapticsEnabled: true, customColors: DEFAULT_COLORS, savedGame: null,
+  savedBox: { removed: false, lidOpen: false },
 };
 
 const isTheme = (value: unknown): value is GameSettings["theme"] =>
@@ -49,6 +52,10 @@ function readSettings(): GameSettings {
       hapticsEnabled: typeof parsed.hapticsEnabled === "boolean" ? parsed.hapticsEnabled : DEFAULT_SETTINGS.hapticsEnabled,
       customColors: { ...DEFAULT_COLORS, ...(parsed.customColors || {}) },
       savedGame,
+      savedBox: parsed.savedBox && typeof parsed.savedBox.removed === "boolean" &&
+        typeof parsed.savedBox.lidOpen === "boolean"
+        ? parsed.savedBox
+        : DEFAULT_SETTINGS.savedBox,
     };
   } catch {
     return DEFAULT_SETTINGS;

@@ -139,6 +139,13 @@ class Sfx {
     this.unlock();
     [523, 659, 784, 1046].forEach((n, i) => this.tone(n, 0.2, "triangle", 0.045, i * 0.08));
   }
+
+  caseClose() {
+    if (!this.enabled) return;
+    this.unlock();
+    this.tone(125, 0.055, "square", 0.035);
+    this.tone(390, 0.035, "triangle", 0.018, 0.008);
+  }
 }
 
 export class CubeEngine {
@@ -159,7 +166,9 @@ export class CubeEngine {
   private lidAngle = 0;
   private lidTargetAngle = 0;
   private boxRemoved = false;
+  private boxMotion: "idle" | "opening" | "closing" | "openingToHide" | "lowering" | "raising" | "closingAfterRise" = "idle";
   private cubeTapTimer: number | null = null;
+  public onCaseStateChange: ((state: { removed: boolean; lidOpen: boolean }) => void) | null = null;
 
   private readonly owned: Object3D[] = [];
   private readonly geos: { dispose: () => void }[] = [];
@@ -542,41 +551,94 @@ export class CubeEngine {
   }
 
   private handleCubeTap() {
+    this.sfx.unlock();
     if (this.cubeTapTimer !== null) {
       window.clearTimeout(this.cubeTapTimer);
       this.cubeTapTimer = null;
       this.toggleBoxVisibility();
       return;
     }
-
     this.cubeTapTimer = window.setTimeout(() => {
       this.cubeTapTimer = null;
-      if (!this.boxRemoved && Math.abs(this.boxTargetY) < 0.01) {
-        this.lidTargetAngle = Math.abs(this.lidTargetAngle) < 0.1
-          ? -Math.PI / 2
-          : 0;
-      }
+      if (this.boxMotion !== "idle" || this.boxRemoved) return;
+      this.lidTargetAngle = Math.abs(this.lidAngle) < 0.1 ? -Math.PI / 2 : 0;
+      this.boxMotion = this.lidTargetAngle < 0 ? "opening" : "closing";
+      this.onCaseStateChange?.({ removed: false, lidOpen: this.lidTargetAngle < 0 });
     }, 420);
   }
 
   private toggleBoxVisibility() {
-    this.boxRemoved = !this.boxRemoved;
-
+    if (this.boxMotion !== "idle") return;
     if (this.boxRemoved) {
-      this.lidTargetAngle = -Math.PI / 2;
-      this.boxTargetY = -4.8;
-    } else {
+      this.boxRoot.visible = true;
+      this.boxY = -4.8;
       this.boxTargetY = 0;
-      this.lidTargetAngle = 0;
+      this.lidAngle = -Math.PI / 2;
+      this.lidTargetAngle = -Math.PI / 2;
+      this.boxLid.rotation.x = this.lidAngle;
+      this.boxMotion = "raising";
+      this.onCaseStateChange?.({ removed: false, lidOpen: false });
+    } else {
+      this.lidTargetAngle = -Math.PI / 2;
+      this.boxMotion = "openingToHide";
+      this.onCaseStateChange?.({ removed: true, lidOpen: true });
     }
   }
 
+  public setCaseState(state?: { removed: boolean; lidOpen: boolean } | null) {
+    const removed = Boolean(state?.removed);
+    const lidOpen = removed || Boolean(state?.lidOpen);
+    this.boxRemoved = removed;
+    this.boxMotion = "idle";
+    this.boxY = removed ? -4.8 : 0;
+    this.boxTargetY = this.boxY;
+    this.lidAngle = lidOpen ? -Math.PI / 2 : 0;
+    this.lidTargetAngle = this.lidAngle;
+    this.boxLid.rotation.x = this.lidAngle;
+    this.boxRoot.position.set(0, this.cubeRoot.position.y + this.boxY, 0);
+    this.boxRoot.visible = !removed;
+  }
+
+  public getCaseState() {
+    return { removed: this.boxRemoved, lidOpen: this.boxRemoved || this.lidAngle < -0.1 };
+  }
+
+  private finishCaseTransition() {
+    this.boxMotion = "idle";
+    this.onCaseStateChange?.(this.getCaseState());
+  }
+
   private updateCase(dt: number) {
-    const smooth = 1 - Math.exp(-9 * dt);
+    const smooth = 1 - Math.exp(-10 * dt);
+    const angleWasMoving = Math.abs(this.lidTargetAngle - this.lidAngle) > 0.002;
+    const boxWasMoving = Math.abs(this.boxTargetY - this.boxY) > 0.002;
     this.boxY += (this.boxTargetY - this.boxY) * smooth;
     this.lidAngle += (this.lidTargetAngle - this.lidAngle) * smooth;
+    if (Math.abs(this.boxTargetY - this.boxY) < 0.002) this.boxY = this.boxTargetY;
+    if (Math.abs(this.lidTargetAngle - this.lidAngle) < 0.002) this.lidAngle = this.lidTargetAngle;
     this.boxRoot.position.set(0, this.cubeRoot.position.y + this.boxY, 0);
     this.boxLid.rotation.x = this.lidAngle;
+
+    if (this.boxMotion === "openingToHide" && !angleWasMoving) {
+      this.boxTargetY = -4.8;
+      this.boxMotion = "lowering";
+    } else if (this.boxMotion === "lowering" && !boxWasMoving) {
+      this.boxRemoved = true;
+      this.boxRoot.visible = false;
+      this.finishCaseTransition();
+    } else if (this.boxMotion === "raising" && !boxWasMoving) {
+      this.lidTargetAngle = 0;
+      this.boxMotion = "closingAfterRise";
+    } else if (this.boxMotion === "closingAfterRise" && !angleWasMoving) {
+      this.boxRemoved = false;
+      this.sfx.caseClose();
+      this.finishCaseTransition();
+    } else if (this.boxMotion === "opening" && !angleWasMoving) {
+      this.finishCaseTransition();
+    } else if (this.boxMotion === "closing" && !angleWasMoving) {
+      this.sfx.caseClose();
+      this.finishCaseTransition();
+    }
   }
 
   private buildCase(scene: Scene) {
@@ -646,6 +708,8 @@ export class CubeEngine {
     addPanel(this.boxLid, xWallGeometry, lidMaterial, -half + thickness / 2, half / 2, half);
     addPanel(this.boxLid, xWallGeometry, lidMaterial, half - thickness / 2, half / 2, half);
     addPanel(this.boxLid, zWallGeometry, lidMaterial, 0, half / 2, size - thickness / 2);
+    // Cierra el lateral posterior para completar la tapa junto a las bisagras.
+    addPanel(this.boxLid, zWallGeometry, lidMaterial, 0, half / 2, thickness / 2);
     this.boxRoot.add(this.boxLid);
 
     // Bisagras visibles en la unión posterior entre la base y la tapa.

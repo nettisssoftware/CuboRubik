@@ -75,6 +75,7 @@ function Home() {
         {Stage && isLoaded ? <Stage
           settings={settings}
           onSaveState={handleSaveState}
+          onCaseStateChange={state => updateSetting("savedBox", state)}
           onPhase={setPhase}
           onTap={onTap}
           onFirstMove={() => setHint(false)}
