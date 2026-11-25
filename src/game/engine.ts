@@ -1,6 +1,9 @@
 import {
   AmbientLight,
+  BoxGeometry,
+  CylinderGeometry,
   DirectionalLight,
+  DoubleSide,
   Group,
   HemisphereLight,
   Matrix4,
@@ -148,6 +151,15 @@ export class CubeEngine {
 
   private readonly raycaster = new Raycaster();
   private readonly sfx = new Sfx();
+  private readonly boxRoot = new Group();
+  private readonly boxLid = new Group();
+
+  private boxY = 0;
+  private boxTargetY = 0;
+  private lidAngle = 0;
+  private lidTargetAngle = 0;
+  private boxRemoved = false;
+  private cubeTapTimer: number | null = null;
 
   private readonly owned: Object3D[] = [];
   private readonly geos: { dispose: () => void }[] = [];
@@ -207,6 +219,7 @@ export class CubeEngine {
   private downY = 0;
   private downAt = 0;
   private downButton = 0;
+  private downOnCube = false;
 
   private orbiting = false;
   private autoResumeAt = 0;
@@ -287,6 +300,7 @@ export class CubeEngine {
 
     this.pieces = this.buildPieces();
     this.buildLights(opts.scene);
+    this.buildCase(opts.scene);
     opts.scene.add(this.cubeRoot);
     this.owned.push(this.cubeRoot);
 
@@ -323,6 +337,7 @@ export class CubeEngine {
     const bob = this.phase === "ready" && !this.reduced ? Math.sin(this.time * 1.15) * 0.07 : 0;
 
     this.cubeRoot.position.y += (bob - this.cubeRoot.position.y) * (1 - Math.exp(-4 * d));
+    this.updateCase(d);
   }
 
   start() {
@@ -364,6 +379,11 @@ export class CubeEngine {
     this.downAt = performance.now();
     this.downButton = e.button;
 
+    // El raycast solo consulta las piezas del cubo, nunca la caja.
+    // La caja no puede interceptar los toques dirigidos al cubo.
+    const hit = e.button === 0 ? this.pick(e.clientX, e.clientY) : null;
+    this.downOnCube = hit !== null;
+
     const orbitOnly =
       e.button === 2 ||
       e.button === 1 ||
@@ -376,8 +396,6 @@ export class CubeEngine {
       this.orbiting = true;
       return;
     }
-
-    const hit = this.pick(e.clientX, e.clientY);
 
     if (!hit) {
       this.mode = "orbit";
@@ -447,7 +465,8 @@ export class CubeEngine {
       const tap = this.downButton === 0 && p.travel < 10 && performance.now() - this.downAt < 450;
 
       if (tap && this.mode !== "slice" && this.mode !== "pinch") {
-        this.hooks.onTap();
+        if (this.downOnCube) this.handleCubeTap();
+        else this.hooks.onTap();
       }
 
       if (this.mode === "slice") this.releaseSlice();
@@ -456,6 +475,7 @@ export class CubeEngine {
       this.orbiting = false;
       this.pinch = null;
       this.pendingPiece = null;
+      this.downOnCube = false;
       this.autoResumeAt = performance.now() + 1400;
 
       return;
@@ -483,6 +503,11 @@ export class CubeEngine {
   }
 
   dispose() {
+    if (this.cubeTapTimer !== null) {
+      window.clearTimeout(this.cubeTapTimer);
+      this.cubeTapTimer = null;
+    }
+
     for (const obj of this.owned) {
       obj.parent?.remove(obj);
     }
@@ -514,6 +539,128 @@ export class CubeEngine {
     this.hooks.onPhase(this.phase);
 
     this.enqueueQuarters(1, 1, -1, true, true);
+  }
+
+  private handleCubeTap() {
+    if (this.cubeTapTimer !== null) {
+      window.clearTimeout(this.cubeTapTimer);
+      this.cubeTapTimer = null;
+      this.toggleBoxVisibility();
+      return;
+    }
+
+    this.cubeTapTimer = window.setTimeout(() => {
+      this.cubeTapTimer = null;
+      if (!this.boxRemoved && Math.abs(this.boxTargetY) < 0.01) {
+        this.lidTargetAngle = Math.abs(this.lidTargetAngle) < 0.1
+          ? -Math.PI / 2
+          : 0;
+      }
+    }, 420);
+  }
+
+  private toggleBoxVisibility() {
+    this.boxRemoved = !this.boxRemoved;
+
+    if (this.boxRemoved) {
+      this.lidTargetAngle = -Math.PI / 2;
+      this.boxTargetY = -4.8;
+    } else {
+      this.boxTargetY = 0;
+      this.lidTargetAngle = 0;
+    }
+  }
+
+  private updateCase(dt: number) {
+    const smooth = 1 - Math.exp(-9 * dt);
+    this.boxY += (this.boxTargetY - this.boxY) * smooth;
+    this.lidAngle += (this.lidTargetAngle - this.lidAngle) * smooth;
+    this.boxRoot.position.set(0, this.cubeRoot.position.y + this.boxY, 0);
+    this.boxLid.rotation.x = this.lidAngle;
+  }
+
+  private buildCase(scene: Scene) {
+    const size = 3.34;
+    const half = size / 2;
+    const thickness = 0.075;
+    const wallHeight = size / 2;
+    const wallCenter = -size / 4;
+
+    const baseMaterial = new MeshPhysicalMaterial({
+      color: "#ffffff",
+      roughness: 0.28,
+      metalness: 0,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.22,
+    });
+    const lidMaterial = new MeshPhysicalMaterial({
+      color: "#eaf4ff",
+      roughness: 0.16,
+      metalness: 0,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08,
+      transparent: true,
+      opacity: 0.24,
+      depthWrite: false,
+      side: DoubleSide,
+    });
+    const hingeMaterial = new MeshPhysicalMaterial({
+      color: "#aeb8c2",
+      roughness: 0.3,
+      metalness: 0.72,
+      clearcoat: 0.65,
+    });
+    this.mats.push(baseMaterial, lidMaterial, hingeMaterial);
+
+    const slabGeometry = new BoxGeometry(size, thickness, size);
+    const xWallGeometry = new BoxGeometry(thickness, wallHeight, size);
+    const zWallGeometry = new BoxGeometry(size, wallHeight, thickness);
+    const hingeGeometry = new CylinderGeometry(0.065, 0.065, 0.26, 8);
+    this.geos.push(slabGeometry, xWallGeometry, zWallGeometry, hingeGeometry);
+
+    const addPanel = (
+      parent: Group,
+      geometry: BoxGeometry,
+      material: MeshPhysicalMaterial,
+      x: number,
+      y: number,
+      z: number,
+    ) => {
+      const mesh = new Mesh(geometry, material);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      parent.add(mesh);
+    };
+
+    // Mitad inferior: plástico blanco sólido y opaco.
+    addPanel(this.boxRoot, slabGeometry, baseMaterial, 0, -half, 0);
+    addPanel(this.boxRoot, xWallGeometry, baseMaterial, -half + thickness / 2, wallCenter, 0);
+    addPanel(this.boxRoot, xWallGeometry, baseMaterial, half - thickness / 2, wallCenter, 0);
+    addPanel(this.boxRoot, zWallGeometry, baseMaterial, 0, wallCenter, -half + thickness / 2);
+    addPanel(this.boxRoot, zWallGeometry, baseMaterial, 0, wallCenter, half - thickness / 2);
+
+    // Mitad superior: tapa semitransparente con pivote en las bisagras traseras.
+    this.boxLid.position.set(0, 0, -half + thickness / 2);
+    addPanel(this.boxLid, slabGeometry, lidMaterial, 0, half, half);
+    addPanel(this.boxLid, xWallGeometry, lidMaterial, -half + thickness / 2, half / 2, half);
+    addPanel(this.boxLid, xWallGeometry, lidMaterial, half - thickness / 2, half / 2, half);
+    addPanel(this.boxLid, zWallGeometry, lidMaterial, 0, half / 2, size - thickness / 2);
+    this.boxRoot.add(this.boxLid);
+
+    // Bisagras visibles en la unión posterior entre la base y la tapa.
+    for (const x of [-1.05, 1.05]) {
+      const hinge = new Mesh(hingeGeometry, hingeMaterial);
+      hinge.rotation.z = Math.PI / 2;
+      hinge.position.set(x, 0, -half);
+      hinge.castShadow = false;
+      hinge.receiveShadow = false;
+      this.boxRoot.add(hinge);
+    }
+
+    this.boxRoot.position.y = this.cubeRoot.position.y;
+    scene.add(this.boxRoot);
+    this.owned.push(this.boxRoot);
   }
 
   private beginScramble() {
@@ -1153,6 +1300,15 @@ export class CubeEngine {
   }
 
   private buildLights(scene: Scene) {
+    // Luz direccional frontal vinculada a la cámara; no sustituye las luces existentes.
+    const cameraLight = new DirectionalLight("#ffffff", 0.72);
+    const cameraLightTarget = new Object3D();
+    cameraLight.position.set(0, 0, 0);
+    cameraLightTarget.position.set(0, 0, -1);
+    cameraLight.target = cameraLightTarget;
+    this.camera.add(cameraLight, cameraLightTarget);
+    this.owned.push(cameraLight, cameraLightTarget);
+
     const amb = new AmbientLight("#ffffff", 0.5);
     const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
 
