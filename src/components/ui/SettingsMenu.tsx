@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import type { FaceColor, GameSettings } from "@/components/ui/useSettings";
 import "@/components/ui/SettingsMenu.css";
 
@@ -134,8 +135,15 @@ export function SettingsMenu({ settings, onChange, onClear }: Props) {
                   <span className="slider round"></span>
                 </label></div>
                 <div className="setting-row"><button className="danger-text-btn" type="button" onClick={handleClear}>Borrar progreso guardado</button></div>
+                <div className="setting-row"><Link className="legal-settings-link" to="/privacidad">Política de privacidad <span aria-hidden="true">›</span></Link></div>
+                <div className="setting-row"><Link className="legal-settings-link" to="/terminos">Términos de uso <span aria-hidden="true">›</span></Link></div>
+                <div className="setting-row"><Link className="legal-settings-link" to="/contacto">Contacto <span aria-hidden="true">›</span></Link></div>
               </div>
             </div>
+            <footer className="settings-brand-footer">
+              <span className="settings-brand-symbol" aria-label="尊">尊</span>
+              <span className="settings-brand-name">ZUN CUBE</span>
+            </footer>
           </div>
         </div>
       )}
