@@ -39,7 +39,7 @@ function PrivacyPage() {
       <p>La implementación actual no incorpora herramientas propias de analítica, píxeles publicitarios ni SDK de publicidad. No se venden datos personales ni se utilizan los ajustes locales del cubo para crear perfiles publicitarios.</p>
 
       <h2>4. Cuentas, cookies y autenticación</h2>
-      <p>El simulador no exige crear una cuenta ni iniciar sesión para jugar. El repositorio contiene infraestructura técnica de autenticación (Better Auth), pero la interfaz actual del juego no presenta un formulario de registro o acceso ni necesita una cuenta para guardar las preferencias locales. Si se habilitan funciones de cuenta o autenticación para usuarios, esta política deberá actualizarse antes de su puesta en funcionamiento para explicar los datos, cookies de sesión, proveedores y finalidades correspondientes.</p>
+      <p>El simulador no exige crear una cuenta ni iniciar sesión para jugar. El código fuente incluye infraestructura técnica de autenticación (Better Auth), pero la interfaz actual no presenta un formulario de registro o acceso. Si una ruta o integración de autenticación llegara a utilizarse, ese flujo podría procesar identificadores de cuenta, datos recibidos del proveedor de identidad y cookies de sesión según la configuración activa. Antes de ofrecer el inicio de sesión como función de usuario, esta política deberá detallar los proveedores, finalidades, datos tratados y plazos correspondientes.</p>
 
       <h2>5. Finalidades y conservación</h2>
       <ul>
