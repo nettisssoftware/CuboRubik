@@ -33,7 +33,7 @@ export const Route = createRootRoute({
       { property: "og:image:width", content: "1200" }, // Ajusta si tu imagen tiene otras medidas
       { property: "og:image:height", content: "630" },
       { property: "og:site_name", content: APP_NAME },
-      { property: "og:locale", content: "es_ES" },
+      { property: "og:locale", content: "es_PY" },
 
       // --- Twitter Card ---
       { name: "twitter:card", content: "summary_large_image" },
