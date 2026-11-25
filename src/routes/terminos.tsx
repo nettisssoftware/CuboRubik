@@ -38,7 +38,7 @@ function TermsPage() {
 
       <h2>4. Propiedad intelectual y marcas</h2>
       <p>La marca ZUN CUBE, el símbolo 尊 y los elementos originales de identidad, interfaz y software desarrollados para el proyecto pertenecen a sus respectivos titulares. Los nombres, marcas, bibliotecas y componentes de terceros continúan perteneciendo a sus propietarios y se utilizan conforme a sus licencias o derechos aplicables.</p>
-      <p>Zun Cube Simulator es un proyecto independiente. No está afiliado, patrocinado ni respaldado por Rubik's Brand Ltd., Spin Master ni por fabricantes de cubos físicos. Las referencias al cubo de Rubik se utilizan para describir el tipo de rompecabezas simulado; las marcas de terceros conservan todos sus derechos.</p>
+      <p>Zun Cube Simulator es un proyecto independiente. No está afiliado, patrocinado ni respaldado por los titulares de la marca Rubik's ni por fabricantes de cubos físicos. Las referencias al cubo de Rubik se utilizan para describir el tipo de rompecabezas simulado; las marcas de terceros conservan todos sus derechos.</p>
       <p>No se concede permiso para copiar, redistribuir o explotar comercialmente los elementos originales del proyecto salvo autorización expresa o cuando una licencia aplicable lo permita. Esta cláusula no limita los derechos que la ley reconozca al usuario.</p>
 
       <h2>5. Funcionamiento y disponibilidad</h2>
