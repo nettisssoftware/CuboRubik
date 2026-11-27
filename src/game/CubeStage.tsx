@@ -12,6 +12,7 @@ type Props = {
   settings: GameSettings;
   onSaveState: (state: any) => void;
   onCaseStateChange: (state: { removed: boolean; lidOpen: boolean }) => void;
+  onCaseVisibilityChange: (removed: boolean) => void;
 };
 
 function Scene(props: Props) {
@@ -41,6 +42,7 @@ function Scene(props: Props) {
     });
     engine.onStateChange = () => propsRef.current.onSaveState(engine.getSaveState());
     engine.onCaseStateChange = state => propsRef.current.onCaseStateChange(state);
+    engine.onCaseVisibilityChange = removed => propsRef.current.onCaseVisibilityChange(removed);
     engine.setCaseState(props.settings.savedBox);
     if (props.settings.savedGame) engine.loadSaveState(props.settings.savedGame);
 

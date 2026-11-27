@@ -80,6 +80,7 @@ const AXIS_VEC = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 
 
 const TURN_MS = 0.16;
 const SCRAMBLE_MS = 0.092;
+const CASE_HIDDEN_Y = -6.2;
 
 class Sfx {
   private ctx: AudioContext | null = null;
@@ -176,6 +177,7 @@ export class CubeEngine {
     | "closingAfterRise" = "idle";
   private cubeTapTimer: number | null = null;
   public onCaseStateChange: ((state: { removed: boolean; lidOpen: boolean }) => void) | null = null;
+  public onCaseVisibilityChange: ((removed: boolean) => void) | null = null;
 
   private readonly owned: Object3D[] = [];
   private readonly geos: { dispose: () => void }[] = [];
@@ -357,13 +359,13 @@ export class CubeEngine {
   }
 
   start() {
-    if (this.phase !== "ready") return;
+    if (this.phase !== "ready" || this.boxRoot.visible) return;
     this.sfx.unlock();
     this.beginScramble();
   }
 
   replay() {
-    if (this.phase !== "won") return;
+    if (this.phase !== "won" || this.boxRoot.visible) return;
     this.sfx.unlock();
     this.beginScramble();
   }
@@ -404,6 +406,7 @@ export class CubeEngine {
       e.button === 2 ||
       e.button === 1 ||
       this.phase !== "playing" ||
+      this.boxRoot.visible ||
       this.anim !== null ||
       this.queue.length > 0;
 
@@ -482,7 +485,7 @@ export class CubeEngine {
 
       if (tap && this.mode !== "slice" && this.mode !== "pinch") {
         if (this.downOnCube) this.handleCubeTap();
-        else this.hooks.onTap();
+        else if (!this.boxRoot.visible) this.hooks.onTap();
       }
 
       if (this.mode === "slice") this.releaseSlice();
@@ -535,7 +538,7 @@ export class CubeEngine {
   }
 
   solveAsPlayer() {
-    if (this.anim || this.mode === "slice") return;
+    if (this.boxRoot.visible || this.anim || this.mode === "slice") return;
 
     const hist = this.history.splice(0);
 
@@ -575,10 +578,11 @@ export class CubeEngine {
   }
 
   private toggleBoxVisibility() {
-    if (this.boxMotion !== "idle") return;
+    if (this.boxMotion !== "idle" || this.anim || this.slice || this.queue.length > 0) return;
     if (this.boxRemoved) {
       this.boxRoot.visible = true;
-      this.boxY = -4.8;
+      this.onCaseVisibilityChange?.(false);
+      this.boxY = CASE_HIDDEN_Y;
       this.boxTargetY = 0;
       this.lidAngle = -Math.PI / 2;
       this.lidTargetAngle = -Math.PI / 2;
@@ -597,13 +601,14 @@ export class CubeEngine {
     const lidOpen = removed || Boolean(state?.lidOpen);
     this.boxRemoved = removed;
     this.boxMotion = "idle";
-    this.boxY = removed ? -4.8 : 0;
+    this.boxY = removed ? CASE_HIDDEN_Y : 0;
     this.boxTargetY = this.boxY;
     this.lidAngle = lidOpen ? -Math.PI / 2 : 0;
     this.lidTargetAngle = this.lidAngle;
     this.boxLid.rotation.x = this.lidAngle;
     this.boxRoot.position.set(0, this.cubeRoot.position.y + this.boxY, 0);
     this.boxRoot.visible = !removed;
+    this.onCaseVisibilityChange?.(removed);
   }
 
   public getCaseState() {
@@ -627,11 +632,12 @@ export class CubeEngine {
     this.boxLid.rotation.x = this.lidAngle;
 
     if (this.boxMotion === "openingToHide" && !angleWasMoving) {
-      this.boxTargetY = -4.8;
+      this.boxTargetY = CASE_HIDDEN_Y;
       this.boxMotion = "lowering";
     } else if (this.boxMotion === "lowering" && !boxWasMoving) {
       this.boxRemoved = true;
       this.boxRoot.visible = false;
+      this.onCaseVisibilityChange?.(true);
       this.finishCaseTransition();
     } else if (this.boxMotion === "raising" && !boxWasMoving) {
       this.lidTargetAngle = 0;

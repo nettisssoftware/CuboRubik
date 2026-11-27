@@ -11,6 +11,7 @@ function Home() {
   const [phase, setPhase] = useState<Phase>("ready");
   const [armed, setArmed] = useState(false);
   const [hint, setHint] = useState(true);
+  const [caseRemoved, setCaseRemoved] = useState(false);
   const [Stage, setStage] = useState<StageComponent | null>(null);
   const api = useRef<CubeApi | null>(null);
   const pendingStart = useRef(false);
@@ -48,13 +49,19 @@ function Home() {
   };
 
   useEffect(() => {
+    if (caseRemoved) return;
+    lastTap.current = 0;
+    setArmed(false);
+  }, [caseRemoved]);
+
+  useEffect(() => {
     if (!armed) return;
     const id = window.setTimeout(() => { lastTap.current = 0; setArmed(false); }, 480);
     return () => window.clearTimeout(id);
   }, [armed]);
 
   const onTap = () => {
-    if (phaseRef.current === "scrambling" || phaseRef.current === "playing") return;
+    if (!caseRemoved || phaseRef.current === "scrambling" || phaseRef.current === "playing") return;
     const now = performance.now();
     if (now - lastTap.current < 420) {
       lastTap.current = 0;
@@ -76,6 +83,7 @@ function Home() {
           settings={settings}
           onSaveState={handleSaveState}
           onCaseStateChange={state => updateSetting("savedBox", state)}
+          onCaseVisibilityChange={setCaseRemoved}
           onPhase={setPhase}
           onTap={onTap}
           onFirstMove={() => setHint(false)}
@@ -97,13 +105,13 @@ function Home() {
       <header className="hud">
         <div className="brand"><p className="wordmark">ZUN CUBE</p><p className="kicker">SIMULATOR 3×3</p></div>
         <div className="hud-copy">
-          {phase === "ready" ? <><p className="prompt">Toca dos veces la pantalla para comenzar</p>{armed ? <p className="armed">Una vez más</p> : null}</> : null}
+          {phase === "ready" && caseRemoved ? <><p className="prompt">Toca dos veces la pantalla para comenzar</p>{armed ? <p className="armed">Una vez más</p> : null}</> : null}
           {phase === "scrambling" ? <p className="status">Mezclando el cubo</p> : null}
           {phase === "playing" ? <p className="status">{hint
             ? "Desliza una pieza para girarla. Arrastra el vacío para mover la cámara. Pellizca para acercar."
             : "Arma las seis caras"}</p> : null}
           {phase === "won" ? <><p className="prompt" style={{ color: "var(--color-primary)", fontWeight: 600 }}>¡Cubo resuelto!</p>
-            <p className="status">{armed ? "Una vez más para mezclar..." : "Toca dos veces para jugar de nuevo"}</p></> : null}
+            {caseRemoved ? <p className="status">{armed ? "Una vez más para mezclar..." : "Toca dos veces para jugar de nuevo"}</p> : null}</> : null}
         </div>
       </header>
     </main>
