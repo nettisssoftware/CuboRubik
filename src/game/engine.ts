@@ -166,7 +166,14 @@ export class CubeEngine {
   private lidAngle = 0;
   private lidTargetAngle = 0;
   private boxRemoved = false;
-  private boxMotion: "idle" | "opening" | "closing" | "openingToHide" | "lowering" | "raising" | "closingAfterRise" = "idle";
+  private boxMotion:
+    | "idle"
+    | "opening"
+    | "closing"
+    | "openingToHide"
+    | "lowering"
+    | "raising"
+    | "closingAfterRise" = "idle";
   private cubeTapTimer: number | null = null;
   public onCaseStateChange: ((state: { removed: boolean; lidOpen: boolean }) => void) | null = null;
 
@@ -1364,36 +1371,39 @@ export class CubeEngine {
   }
 
   private buildLights(scene: Scene) {
-    // Luz direccional frontal vinculada a la cámara; no sustituye las luces existentes.
-    const cameraLight = new DirectionalLight("#ffffff", 0.72);
-    const cameraLightTarget = new Object3D();
-    cameraLight.position.set(0, 0, 0);
-    cameraLightTarget.position.set(0, 0, -1);
-    cameraLight.target = cameraLightTarget;
-    this.camera.add(cameraLight, cameraLightTarget);
-    this.owned.push(cameraLight, cameraLightTarget);
+    // Luz ambiental suave para que las sombras no sean negras puras
+    const amb = new AmbientLight("#ffffff", 0.8);
+    const hemi = new HemisphereLight("#ffffff", "#222222", 0.8);
 
-    const amb = new AmbientLight("#ffffff", 0.5);
-    const hemi = new HemisphereLight("#ffffff", "#222222", 1.2);
+    // Luz principal que viaja CON la cámara
+    const cameraLight = new DirectionalLight("#ffffff", 1.5);
+    cameraLight.position.set(0, 0, 1); // Un poco adelante de la cámara
+    this.camera.add(cameraLight); // ¡La luz es hija de la cámara!
+    scene.add(this.camera); // La cámara debe estar en la escena
 
-    // Reemplaza la PointLight por una DirectionalLight
-    const key = new DirectionalLight("#ffffff", 1.2); // Intensidad moderada
-    key.position.set(5, 10, 7); // Dirección de la luz
-    key.castShadow = true;
-    key.shadow.mapSize.width = 1024;
-    key.shadow.mapSize.height = 1024;
-    key.shadow.bias = -0.001;
-
-    const fill = new DirectionalLight("#9fdfff", 0.48);
+    // Luces de relleno fijas para dar volumen (opcional)
+    const fill = new DirectionalLight("#9fdfff", 0.3);
     fill.position.set(-7, 3.2, -4);
 
-    const rim = new DirectionalLight("#ffb25a", 0.32);
+    const rim = new DirectionalLight("#ffb25a", 0.2);
     rim.position.set(-2, 4, -8);
 
-    for (const obj of [hemi, amb, key, fill, rim]) {
+    // IMPORTANTE: La sombra ya no la proyecta la luz de la cámara
+    // (porque se mueve y la sombra "bailaría"). La proyecta una luz fija.
+    const shadowLight = new DirectionalLight("#ffffff", 0.5);
+    shadowLight.position.set(5, 10, 7);
+    shadowLight.castShadow = true;
+    shadowLight.shadow.mapSize.width = 1024;
+    shadowLight.shadow.mapSize.height = 1024;
+    shadowLight.shadow.bias = -0.001;
+
+    for (const obj of [hemi, amb, fill, rim, shadowLight]) {
       scene.add(obj);
       this.owned.push(obj);
     }
+
+    // La cameraLight ya es hija de la cámara, no la añadimos al owned
+    // porque se limpiará cuando se limpie la cámara.
   }
 
   private publishDebug() {
