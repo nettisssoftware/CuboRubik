@@ -75,7 +75,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 1.02;
+const SPACING = 1.04;
 const AXIS_VEC = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)];
 
 const TURN_MS = 0.16;
@@ -1261,7 +1261,7 @@ export class CubeEngine {
     this.geos.push(...gan.all);
 
     const plastic = new MeshPhysicalMaterial({
-      color: "#000000",
+      color: "#ffffff",
       metalness: 0.0,
       roughness: 0.35,
       clearcoat: 1.0,
