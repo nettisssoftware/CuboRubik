@@ -1,11 +1,14 @@
 import {
   BufferGeometry,
+  Euler,
   ExtrudeGeometry,
+  Quaternion,
   Shape,
   ShapeGeometry,
   Vector3,
 } from "three";
 import type { Axis, Vec3 } from "./cube-math";
+import { CUBE_SPACING, EXTERIOR_Z, FACE_OFFSET, MIN_INNER_Z, SHELL_RADIUS } from "./nucleo-cube";
 
 export type TileKind = "center" | "edge" | "corner";
 
@@ -35,15 +38,15 @@ export function createGanGeometries(): GanGeos {
   const loopCorner = roundRect(SIZE, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS, CORNER_RADIUS);
 
   // 2. Crear las piezas negras (extruidas en 3D)
-  const bodyCenter = extrudeBody(loopCenter, DEPTH);
-  const bodyEdge = extrudeBody(loopEdge, DEPTH);
-  const bodyCorner = extrudeBody(loopCorner, DEPTH);
+  const bodyCenter = moldInnerShell(extrudeBody(loopCenter, DEPTH), "center");
+  const bodyEdge = moldInnerShell(extrudeBody(loopEdge, DEPTH), "edge");
+  const bodyCorner = moldInnerShell(extrudeBody(loopCorner, DEPTH), "corner");
 
   // 3. Crear los stickers (CON relieve/grosor para tapar la tapa cuadrada)
   const stickerCenter = extrudeSticker(loopCenter);
   const stickerEdge = extrudeSticker(loopEdge);
   const stickerCorner = extrudeSticker(loopCorner);
-  
+
   const body = { center: bodyCenter, edge: bodyEdge, corner: bodyCorner };
   const sticker = { center: stickerCenter, edge: stickerEdge, corner: stickerCorner };
 
@@ -95,7 +98,6 @@ function roundRect(a: number, rTL: number, rTR: number, rBR: number, rBL: number
   return loop;
 }
 
-
 // Cuadrado con un mordisco cóncavo en el lado que mira hacia el centro (-Y local)
 /*function edgeBulge(a: number, sag: number): Pt[] {
   const half = a / 2;
@@ -119,15 +121,13 @@ function roundRect(a: number, rTL: number, rTR: number, rBR: number, rBL: number
   return loop;
 } */
 
-
-
 // Cuadrado con un mordisco cóncavo en el lado que mira hacia el centro (-Y local)
 function edgeBulge(a: number, sag: number): Pt[] {
   const half = a / 2;
   const loop: Pt[] = [];
   const Rarc = (half * half + sag * sag) / (2 * sag);
   const cy = -half + Rarc; // Centro del arco cóncavo
-  
+
   // 1. Arco cóncavo (el mordisco) - SIN CAMBIOS
   const left = Math.atan2(sag - Rarc, -half);
   const right = Math.atan2(sag - Rarc, half);
@@ -136,25 +136,23 @@ function edgeBulge(a: number, sag: number): Pt[] {
     const ang = left + ((right - left) * i) / steps;
     push(loop, Math.cos(ang) * Rarc, cy + Math.sin(ang) * Rarc);
   }
-  
+
   // 2. Redondeo de las esquinas exteriores con el mismo radio que los corners.
   const cornerRadius = CORNER_RADIUS;
 
   // Borde derecho: sube, pero se redondea en la esquina superior
   push(loop, half, half - cornerRadius);
   arc(loop, half - cornerRadius, half - cornerRadius, cornerRadius, 0, Math.PI / 2, 8);
-  
+
   // Borde superior: se cruza y se redondea en la esquina superior izquierda
   push(loop, -half + cornerRadius, half);
   arc(loop, -half + cornerRadius, half - cornerRadius, cornerRadius, Math.PI / 2, Math.PI, 8);
-  
+
   // Borde izquierdo: baja hasta tocar el mordisco
   push(loop, -half, half - cornerRadius);
-  
+
   return loop;
 }
-
-
 
 // --- CONVERSIÓN A GEOMETRÍA 3D ---
 
@@ -165,7 +163,6 @@ function shapeFrom(loop: Pt[]): Shape {
   shape.closePath();
   return shape;
 }
-
 
 function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
   const shape = shapeFrom(loop);
@@ -178,25 +175,86 @@ function extrudeBody(loop: Pt[], depth: number): ExtrudeGeometry {
     curveSegments: 4,
   });
 
-geo.translate(0, 0, -depth - 0.05);
+  geo.translate(0, 0, -depth - 0.05);
 
   return geo;
 }
 
+const shellCenter = new Vector3();
+const projected = new Vector3();
+
+/**
+ * Cáscara esférica interna. La tapa (z >= EXTERIOR_Z) no se mueve.
+ * Si proyectar al cascarón ensancharía la pieza, solo se empuja en Z:
+ * así el perfil exterior y el hueco con las vecinas se mantienen.
+ * El roll de las esquinas deja el origen del cubo en el mismo cuadrante,
+ * así las tres piezas comparten un solo molde.
+ */
+function moldInnerShell(geo: ExtrudeGeometry, kind: TileKind): ExtrudeGeometry {
+  shellAnchor(kind, shellCenter);
+  const pos = geo.attributes.position;
+  const r2 = SHELL_RADIUS * SHELL_RADIUS;
+  const vertex = new Vector3();
+
+  for (let i = 0; i < pos.count; i++) {
+    vertex.fromBufferAttribute(pos, i);
+    if (vertex.z >= EXTERIOR_Z) continue;
+
+    const dx = vertex.x - shellCenter.x;
+    const dy = vertex.y - shellCenter.y;
+    const dz = vertex.z - shellCenter.z;
+    const dist = Math.hypot(dx, dy, dz);
+    if (dist >= SHELL_RADIUS || dist < 1e-6) continue;
+
+    const scale = SHELL_RADIUS / dist;
+    projected.set(dx, dy, dz).multiplyScalar(scale).add(shellCenter);
+
+    const oldRho = Math.hypot(vertex.x, vertex.y);
+    const newRho = Math.hypot(projected.x, projected.y);
+    let x = vertex.x;
+    let y = vertex.y;
+    let z = projected.z;
+
+    if (newRho <= oldRho + 1e-4) {
+      x = projected.x;
+      y = projected.y;
+    } else {
+      const rho2 = dx * dx + dy * dy;
+      if (rho2 < r2) z = shellCenter.z + Math.sqrt(r2 - rho2);
+    }
+
+    if (z > MIN_INNER_Z) z = MIN_INNER_Z;
+    if (z < vertex.z) z = vertex.z;
+    pos.setXYZ(i, x, y, z);
+  }
+
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+function shellAnchor(kind: TileKind, out: Vector3) {
+  const z = -(CUBE_SPACING + FACE_OFFSET);
+  if (kind === "center") out.set(0, 0, z);
+  else if (kind === "edge") out.set(0, -CUBE_SPACING, z);
+  else out.set(CUBE_SPACING, CUBE_SPACING, z);
+}
 
 function extrudeSticker(loop: Pt[]): ExtrudeGeometry {
   const shape = shapeFrom(loop);
   const geo = new ExtrudeGeometry(shape, {
-    depth: 0.04,             // 1. Más grosor (relieve negativo profundo)
-    bevelEnabled: true,      // 2. Biselado activado
-    bevelThickness: 0.04,   // 3. Bisel sutil
+    depth: 0.04, // 1. Más grosor (relieve negativo profundo)
+    bevelEnabled: true, // 2. Biselado activado
+    bevelThickness: 0.04, // 3. Bisel sutil
     bevelSize: 0.04,
     bevelSegments: 2,
     curveSegments: 4,
   });
   // 4. Empujamos el sticker hacia adentro (relieve negativo puro)
   // Su cara frontal queda en Z=0, al ras.
-  geo.translate(0, 0, -0.03); 
+  geo.translate(0, 0, -0.03);
   return geo;
 }
 
@@ -207,14 +265,20 @@ function shapeGeo(loop: Pt[]): ShapeGeometry {
 // --- ORIENTACIÓN ---
 
 const LX: Record<string, Vector3> = {
-  "2+": new Vector3(1, 0, 0), "2-": new Vector3(-1, 0, 0),
-  "1+": new Vector3(1, 0, 0), "1-": new Vector3(1, 0, 0),
-  "0+": new Vector3(0, 0, -1), "0-": new Vector3(0, 0, 1),
+  "2+": new Vector3(1, 0, 0),
+  "2-": new Vector3(-1, 0, 0),
+  "1+": new Vector3(1, 0, 0),
+  "1-": new Vector3(1, 0, 0),
+  "0+": new Vector3(0, 0, -1),
+  "0-": new Vector3(0, 0, 1),
 };
 const LY: Record<string, Vector3> = {
-  "2+": new Vector3(0, 1, 0), "2-": new Vector3(0, 1, 0),
-  "1+": new Vector3(0, 0, -1), "1-": new Vector3(0, 0, 1),
-  "0+": new Vector3(0, 1, 0), "0-": new Vector3(0, 1, 0),
+  "2+": new Vector3(0, 1, 0),
+  "2-": new Vector3(0, 1, 0),
+  "1+": new Vector3(0, 0, -1),
+  "1-": new Vector3(0, 0, 1),
+  "0+": new Vector3(0, 1, 0),
+  "0-": new Vector3(0, 1, 0),
 };
 
 function faceAxes(axis: Axis, sign: number): [Vector3, Vector3] {
@@ -227,7 +291,7 @@ export function ganRoll(home: Vec3, axis: Axis, kind: TileKind): number {
   if (kind === "center") return 0;
   const sign = home[axis];
   const [lx, ly] = faceAxes(axis, sign);
-  
+
   if (kind === "edge") {
     let radial: Axis = 0;
     for (const a of [0, 1, 2] as Axis[]) {
@@ -237,7 +301,32 @@ export function ganRoll(home: Vec3, axis: Axis, kind: TileKind): number {
     away.setComponent(radial, home[radial]);
     return Math.atan2(-away.dot(lx), away.dot(ly));
   }
-  
-  // Para las esquinas, no necesitamos rotación (son cuadrados perfectos)
-  return 0;
+
+  // Cuadrado redondeado: simétrico cada 90°. Este giro (k·π/2) no cambia
+  // la silueta exterior; solo alinea el interior con la cáscara compartida.
+  const origin = cubeOriginInFaceLocal(home, axis, 0);
+  return Math.atan2(origin.y, origin.x) - Math.PI / 4;
+}
+
+const faceEuler = new Euler();
+const orientQ = new Quaternion();
+const rollQ = new Quaternion();
+const faceQ = new Quaternion();
+const originV = new Vector3();
+const localZ = new Vector3(0, 0, 1);
+
+function cubeOriginInFaceLocal(home: Vec3, axis: Axis, roll: number): Vector3 {
+  const sign = home[axis];
+  faceEuler.set(0, 0, 0);
+  if (axis === 0) faceEuler.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+  else if (axis === 1) faceEuler.x = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+  else if (sign < 0) faceEuler.y = Math.PI;
+
+  orientQ.setFromEuler(faceEuler);
+  rollQ.setFromAxisAngle(localZ, roll);
+  faceQ.copy(orientQ).multiply(rollQ);
+
+  originV.set(-home[0] * CUBE_SPACING, -home[1] * CUBE_SPACING, -home[2] * CUBE_SPACING);
+  originV.setComponent(axis, originV.getComponent(axis) - sign * FACE_OFFSET);
+  return originV.applyQuaternion(faceQ.invert());
 }

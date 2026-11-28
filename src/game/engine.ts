@@ -36,6 +36,7 @@ import {
   type Vec3,
 } from "./cube-math";
 import { createGanGeometries, GAN_LIFT, ganRoll } from "./gan-skin";
+import { createNucleoCore } from "./nucleo-cube";
 import { FACE_HEX } from "./palette";
 
 export type Phase = "ready" | "scrambling" | "playing" | "won";
@@ -1259,6 +1260,11 @@ export class CubeEngine {
   private buildPieces(): Piece[] {
     const gan = createGanGeometries();
     this.geos.push(...gan.all);
+
+    const nucleo = createNucleoCore();
+    this.geos.push(...nucleo.geometries);
+    this.mats.push(...nucleo.materials);
+    this.cubeRoot.add(nucleo.group);
 
     const plastic = new MeshPhysicalMaterial({
       color: "#ffffff",
