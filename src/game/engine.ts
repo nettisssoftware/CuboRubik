@@ -75,7 +75,7 @@ type Anim = {
   sound: boolean;
 };
 
-const SPACING = 1.04;
+const SPACING = 1.03;
 const AXIS_VEC = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)];
 
 const TURN_MS = 0.16;
